@@ -177,6 +177,14 @@
       🔄 反転モード
       <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">重力が反転する！ライフ❤️×3</div>
     </button>
+    <button id="btn-mode-time" style="padding:16px;border-radius:20px;border:2px solid rgba(255,150,40,0.5);background:linear-gradient(135deg,rgba(255,150,40,0.18),rgba(255,150,40,0.05));color:#ffae42;font-size:18px;font-weight:700;cursor:pointer;">
+      ⏱ タイムアタック
+      <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">2分でハイスコアを狙え</div>
+    </button>
+    <button id="btn-mode-mission" style="padding:16px;border-radius:20px;border:2px solid rgba(120,220,120,0.5);background:linear-gradient(135deg,rgba(120,220,120,0.18),rgba(120,220,120,0.05));color:#9be89b;font-size:18px;font-weight:700;cursor:pointer;">
+      🎯 ミッション
+      <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">お題を順番にクリア</div>
+    </button>
   </div>
   <div style="font-size:11px;color:#555;margin-top:8px">指を離した場所にフルーツが落ちる</div>
 </div>
@@ -529,6 +537,25 @@ class GameScene extends Phaser.Scene {
     // ライフ表示
     document.getElementById('life-box').style.visibility = this.flipEnabled ? 'visible' : 'hidden';
 
+    // ===== モード別セットアップ（time / mission） =====
+    this.modeKind = gameMode; // 'normal' | 'flip' | 'time' | 'mission'
+    this.timeLeft = 120000;
+    this.missionIndex = 0;
+    this.missions = [
+      { type:'score',  val:100, label:'スコア100点' },
+      { type:'create', idx:2,   label:'ぶどう🍇を作る' },
+      { type:'score',  val:300, label:'スコア300点' },
+      { type:'create', idx:5,   label:'りんご🍎を作る' },
+      { type:'score',  val:800, label:'スコア800点' },
+      { type:'create', idx:9,   label:'メロン🍈を作る' },
+      { type:'create', idx:10,  label:'スイカ🍉を作る' },
+    ];
+    this.hud = this.add.text(GAME_W/2, 14, '', {
+      fontSize:'15px', fontStyle:'bold', color:'#ffffff',
+      stroke:'#000', strokeThickness:4, align:'center'
+    }).setOrigin(0.5, 0).setDepth(12);
+    this.updateHud();
+
     // 警告テキスト
     this.warningText = this.add.text(GAME_W / 2, GAME_H / 2, '', {
       fontSize: '32px', fontStyle: 'bold', color: '#FF4444',
@@ -727,6 +754,7 @@ class GameScene extends Phaser.Scene {
     gameScore += pts;
     this.score = gameScore;
     document.getElementById('score-display').textContent = gameScore;
+    this.onMerge(newIdx);
 
     // 背景・BGM切り替えチェック
     const newLevel = Math.floor(gameScore / 1000);
@@ -1344,6 +1372,13 @@ class GameScene extends Phaser.Scene {
     // 反転猶予タイマー
     if (this.flipGracePeriod > 0) this.flipGracePeriod -= delta;
 
+    // タイムアタック：カウントダウン
+    if (this.modeKind === 'time') {
+      this.timeLeft -= delta;
+      this.updateHud();
+      if (this.timeLeft <= 0) { this.timeLeft = 0; this.triggerGameOver('TIME UP'); return; }
+    }
+
     // 重力反転タイマー（反転モードのみ）
     if (!this.flipEnabled) {
       // 通常モード：ゲームオーバー判定のみ（下方向固定）
@@ -1521,7 +1556,78 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  triggerGameOver() {
+  updateHud() {
+    if (!this.hud) return;
+    if (this.modeKind === 'time') {
+      const s = Math.max(0, Math.ceil(this.timeLeft / 1000));
+      const m = Math.floor(s / 60), ss = ('0' + (s % 60)).slice(-2);
+      this.hud.setText('\u23F1 ' + m + ':' + ss);
+      this.hud.setColor(this.timeLeft <= 10000 ? '#ff5555' : '#ffffff');
+    } else if (this.modeKind === 'mission') {
+      const mi = this.missions[this.missionIndex];
+      this.hud.setText(mi ? ('\uD83C\uDFAF ' + mi.label) : '');
+      this.hud.setColor('#9be89b');
+    } else {
+      this.hud.setText('');
+    }
+  }
+
+  onMerge(newIdx) {
+    if (this.modeKind === 'mission' && !gameOver) this.checkMission(newIdx);
+  }
+
+  checkMission(eventIdx) {
+    if (this.modeKind !== 'mission' || gameOver) return;
+    let advanced = false;
+    while (this.missionIndex < this.missions.length) {
+      const m = this.missions[this.missionIndex];
+      const done = (m.type === 'score') ? (gameScore >= m.val)
+                 : (m.type === 'create' && eventIdx === m.idx);
+      if (!done) break;
+      this.showMissionClear(m.label);
+      this.missionIndex++;
+      advanced = true;
+      eventIdx = -1;
+    }
+    if (advanced) this.updateHud();
+    if (this.missionIndex >= this.missions.length) {
+      this.time.delayedCall(700, () => this.triggerWin());
+    }
+  }
+
+  showMissionClear(label) {
+    const t = this.add.text(GAME_W/2, GAME_H/2 - 40, 'ミッションクリア！\n' + label, {
+      fontSize:'22px', fontStyle:'bold', color:'#9be89b',
+      stroke:'#000', strokeThickness:5, align:'center'
+    }).setOrigin(0.5).setDepth(20).setAlpha(0);
+    this.tweens.add({ targets:t, alpha:1, y:GAME_H/2 - 70, duration:400, hold:900, yoyo:true,
+      onComplete:() => t.destroy() });
+    this.cameras.main.flash(300, 150, 230, 150, false);
+    try { playMergeSound(8); } catch (e) {}
+  }
+
+  triggerWin() {
+    if (gameOver) return;
+    gameOver = true; canDrop = false; stopBGM();
+    this.cameras.main.flash(500, 180, 240, 180, false);
+    const t = this.add.text(GAME_W/2, GAME_H/2, '\uD83C\uDF89\nCLEAR!', {
+      fontSize:'48px', fontStyle:'bold', color:'#7CFC00',
+      stroke:'#000', strokeThickness:6, align:'center'
+    }).setOrigin(0.5).setDepth(20).setScale(2).setAlpha(0);
+    this.tweens.add({ targets:t, alpha:1, scaleX:1, scaleY:1, duration:400, ease:'Back.easeOut' });
+    this.time.delayedCall(1400, () => {
+      t.destroy();
+      const isNew = saveRanking(gameScore);
+      document.getElementById('final-score').textContent = gameScore;
+      const h2 = document.querySelector('#gameover-modal h2');
+      if (h2) h2.textContent = '🎉 ミッションクリア';
+      document.getElementById('new-record-msg').style.display = isNew ? 'block' : 'none';
+      document.getElementById('overlay').classList.remove('hidden');
+      document.getElementById('best-display').textContent = getBest();
+    });
+  }
+
+  triggerGameOver(reason) {
     if (gameOver) return;
     gameOver = true;
     canDrop = false;
@@ -1555,7 +1661,7 @@ class GameScene extends Phaser.Scene {
     });
 
     // 4. GAME OVER テキスト
-    const goText = this.add.text(GAME_W/2, GAME_H/2, 'GAME\nOVER', {
+    const goText = this.add.text(GAME_W/2, GAME_H/2, (reason === 'TIME UP' ? 'TIME\nUP!' : 'GAME\nOVER'), {
       fontSize: '52px', fontStyle: 'bold', color: '#FF0000',
       stroke: '#000', strokeThickness: 6, align: 'center'
     }).setOrigin(0.5).setAlpha(0).setDepth(20).setScale(2);
@@ -1608,6 +1714,8 @@ class GameScene extends Phaser.Scene {
       const isNew = saveRanking(gameScore);
       document.getElementById('final-score').textContent = gameScore;
       document.getElementById('new-record-msg').style.display = isNew ? 'block' : 'none';
+      const h2 = document.querySelector('#gameover-modal h2');
+      if (h2) h2.textContent = (reason === 'TIME UP') ? '⏱ TIME UP' : '🍉 GAME OVER';
       document.getElementById('overlay').classList.remove('hidden');
       const best = getBest();
       document.getElementById('best-display').textContent = best;
@@ -1678,6 +1786,17 @@ document.getElementById('btn-mode-flip').addEventListener('click', () => {
   drawNextFruit(nextFruitIndex);
   game.scene.start('GameScene');
 });
+function _startMode(mode) {
+  gameMode = mode;
+  try { startBGM(0); } catch (e) {}
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('game-container').style.display = 'flex';
+  rollNext();
+  drawNextFruit(nextFruitIndex);
+  game.scene.start('GameScene');
+}
+document.getElementById('btn-mode-time').addEventListener('click', () => _startMode('time'));
+document.getElementById('btn-mode-mission').addEventListener('click', () => _startMode('mission'));
 
 // リスタート時にタイトルに戻る
 document.getElementById('btn-restart').removeEventListener('click', restartGame);
