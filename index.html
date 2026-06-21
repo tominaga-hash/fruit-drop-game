@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>🍉 フルーツドロップ</title>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="フルーツドロップ">
@@ -1659,6 +1662,7 @@ document.getElementById('btn-sound').addEventListener('click', () => {
 // ===================== TITLE SCREEN =====================
 document.getElementById('btn-mode-normal').addEventListener('click', () => {
   gameMode = 'normal';
+  try { startBGM(0); } catch (e) {}
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
   rollNext();
@@ -1667,6 +1671,7 @@ document.getElementById('btn-mode-normal').addEventListener('click', () => {
 });
 document.getElementById('btn-mode-flip').addEventListener('click', () => {
   gameMode = 'flip';
+  try { startBGM(0); } catch (e) {}
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
   rollNext();
