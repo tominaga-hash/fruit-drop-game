@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>💣 爆弾テストモード</title>
+<title>🍉 フルーツドロップ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -147,15 +147,41 @@
 </style>
 </head>
 <body>
-<div id="game-container">
+<div id="title-screen" style="position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#1a0a2e,#16213e,#0f3460);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:20px;">
+  <div style="text-align:center">
+    <div style="font-size:64px;animation:bounce 1s infinite alternate;">🍉</div>
+    <div style="font-size:32px;font-weight:900;color:#FFD700;text-shadow:0 0 20px rgba(255,215,0,0.6);letter-spacing:2px;margin-top:8px">フルーツドロップ</div>
+    <div style="font-size:13px;color:#aaa;margin-top:4px;letter-spacing:3px">FRUIT DROP</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:14px;width:260px;margin-top:16px">
+    <button id="btn-mode-normal" style="padding:16px;border-radius:20px;border:2px solid rgba(255,215,0,0.5);background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,215,0,0.05));color:#FFD700;font-size:18px;font-weight:700;cursor:pointer;">
+      🍎 通常モード
+      <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">フルーツを積み上げよう</div>
+    </button>
+    <button id="btn-mode-flip" style="padding:16px;border-radius:20px;border:2px solid rgba(100,180,255,0.5);background:linear-gradient(135deg,rgba(100,180,255,0.15),rgba(100,180,255,0.05));color:#88ccff;font-size:18px;font-weight:700;cursor:pointer;">
+      🔄 反転モード
+      <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">重力が反転する！ライフ❤️×3</div>
+    </button>
+  </div>
+  <div style="font-size:11px;color:#555;margin-top:8px">指を離した場所にフルーツが落ちる</div>
+</div>
+<style>
+@keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-12px); } }
+</style>
+
+<div id="game-container" style="display:none;">
   <div id="ui-bar">
     <div>
-      <div id="score-label">SCORE <span style="background:#ff3333;color:#fff;font-size:9px;padding:2px 6px;border-radius:8px;vertical-align:middle;">TEST</span></div>
+      <div id="score-label">SCORE</div>
       <div id="score-display">0</div>
     </div>
     <div id="next-fruit-box">
       <div id="next-label">NEXT</div>
       <canvas id="next-canvas" width="48" height="48"></canvas>
+    </div>
+    <div id="life-box" style="display:flex;flex-direction:column;align-items:center;gap:2px;visibility:hidden">
+      <div id="next-label" style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:1px">LIFE</div>
+      <div id="life-display" style="font-size:20px;letter-spacing:2px">❤️❤️❤️</div>
     </div>
     <div style="text-align:right">
       <div id="best-label">BEST</div>
@@ -168,6 +194,7 @@
     <button class="btn" id="btn-sound">🔊 音</button>
     <button class="btn" id="btn-restart">🔄 リスタート</button>
   </div>
+</div>
 </div>
 
 <div id="overlay" class="hidden">
@@ -256,32 +283,126 @@ function playDropSound() {
   } catch(e) {}
 }
 
-function startBGM() {
+// ===================== BGM SYSTEM =====================
+let bgmLevel = -1;
+let bgmLoopTimer = null;
+
+// 各ステージのBGMデータ
+const BGM_DATA = [
+  // 0: 砂漠・夕焼け — ゆったり民族風（ペンタトニック）
+  {
+    bpm: 80, vol: 0.07, type: 'triangle',
+    melody: [220,246.9,261.6,293.7,329.6,293.7,261.6,246.9,220,196,220,246.9,293.7,261.6,220,196],
+    bass:   [110,110,130.8,130.8,110,110,98,98,110,110,130.8,130.8,110,110,98,98],
+    mDur: 0.55, bDur: 0.9,
+  },
+  // 1: 夜の街 — ジャジー（マイナー）
+  {
+    bpm: 100, vol: 0.07, type: 'sine',
+    melody: [311.1,277.2,261.6,233.1,246.9,261.6,233.1,207.7,220,246.9,261.6,277.2,311.1,277.2,261.6,233.1],
+    bass:   [116.5,116.5,130.8,130.8,116.5,116.5,103.8,103.8,110,110,130.8,130.8,116.5,116.5,103.8,103.8],
+    mDur: 0.4, bDur: 0.7,
+  },
+  // 2: 森・自然 — 明るく軽快（メジャー）
+  {
+    bpm: 120, vol: 0.07, type: 'triangle',
+    melody: [261.6,329.6,392,440,392,329.6,293.7,261.6,293.7,349.2,392,440,493.9,440,392,329.6],
+    bass:   [130.8,130.8,164.8,164.8,146.8,146.8,130.8,130.8,130.8,130.8,164.8,164.8,146.8,146.8,130.8,130.8],
+    mDur: 0.33, bDur: 0.6,
+  },
+  // 3: 海の中 — 幻想的・ゆったり（ゆれるアルペジオ）
+  {
+    bpm: 70, vol: 0.065, type: 'sine',
+    melody: [293.7,349.2,392,440,392,349.2,329.6,293.7,261.6,293.7,349.2,392,440,493.9,440,392],
+    bass:   [146.8,146.8,174.6,174.6,146.8,146.8,130.8,130.8,130.8,130.8,174.6,174.6,146.8,146.8,130.8,130.8],
+    mDur: 0.62, bDur: 1.1,
+  },
+  // 4: 宇宙 — 神秘的アンビエント（広がり感）
+  {
+    bpm: 60, vol: 0.06, type: 'sine',
+    melody: [220,246.9,261.6,220,196,220,233.1,246.9,261.6,233.1,220,196,174.6,196,220,246.9],
+    bass:   [55,55,65.4,65.4,55,55,49,49,55,55,65.4,65.4,55,55,49,49],
+    mDur: 0.75, bDur: 1.4,
+  },
+];
+
+function stopBGM() {
+  if (bgmLoopTimer) { clearTimeout(bgmLoopTimer); bgmLoopTimer = null; }
+  if (bgmNodes) {
+    try { bgmNodes.masterGain.gain.setTargetAtTime(0, getAudioCtx().currentTime, 0.3); } catch(e) {}
+    bgmNodes = null;
+  }
+}
+
+function startBGM(level = 0) {
+  stopBGM();
   if (!soundEnabled) return;
+  bgmLevel = level;
+  playBGMLoop(level);
+}
+
+function playBGMLoop(level) {
+  if (!soundEnabled || bgmLevel !== level) return;
   try {
     const ctx = getAudioCtx();
-    const notes = [261.6, 293.7, 329.6, 349.2, 392.0, 440.0, 493.9];
-    const melody = [0,2,4,2,0,2,4,5,4,2,4,5,4,2,0];
-    let time = ctx.currentTime + 0.1;
+    const data = BGM_DATA[Math.min(level, BGM_DATA.length - 1)];
+    const beat = 60 / data.bpm;
     const masterGain = ctx.createGain();
-    masterGain.gain.value = 0.08;
-    masterGain.connect(ctx.destination);
-    const oscs = [];
-    const playNote = (idx) => {
-      if (!soundEnabled) return;
+    masterGain.gain.value = data.vol;
+    // リバーブ風（コンプレッサー）
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -20;
+    comp.ratio.value = 4;
+    masterGain.connect(comp);
+    comp.connect(ctx.destination);
+
+    let t = ctx.currentTime + 0.05;
+    const totalDuration = data.melody.length * beat;
+
+    // メロディ
+    data.melody.forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
       osc.connect(g); g.connect(masterGain);
-      osc.type = 'triangle';
-      osc.frequency.value = notes[melody[idx % melody.length]];
-      g.gain.setValueAtTime(0.5, time);
-      g.gain.exponentialRampToValueAtTime(0.001, time + 0.38);
-      osc.start(time); osc.stop(time + 0.4);
-      oscs.push(osc);
-      time += 0.42;
-    };
-    for (let i = 0; i < melody.length * 4; i++) playNote(i);
-    bgmNodes = { oscs, masterGain };
+      osc.type = data.type;
+      osc.frequency.value = freq;
+      // 宇宙はビブラート
+      if (level === 4) {
+        const lfo = ctx.createOscillator();
+        const lfoG = ctx.createGain();
+        lfo.frequency.value = 4;
+        lfoG.gain.value = 3;
+        lfo.connect(lfoG); lfoG.connect(osc.frequency);
+        lfo.start(t); lfo.stop(t + data.mDur);
+      }
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.5, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + data.mDur);
+      osc.start(t); osc.stop(t + data.mDur);
+      t += beat;
+    });
+
+    // ベース
+    let bt = ctx.currentTime + 0.05;
+    data.bass.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.connect(g); g.connect(masterGain);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.3, bt);
+      g.gain.exponentialRampToValueAtTime(0.001, bt + data.bDur * 0.8);
+      osc.start(bt); osc.stop(bt + data.bDur);
+      bt += beat * 2;
+    });
+
+    bgmNodes = { masterGain };
+
+    // ループ：曲が終わったら再度呼び出す
+    bgmLoopTimer = setTimeout(() => {
+      if (soundEnabled && bgmLevel === level) playBGMLoop(level);
+    }, totalDuration * 1000 - 50);
+
   } catch(e) {}
 }
 
@@ -340,11 +461,61 @@ let gameScore = 0;
 let gameOver = false;
 let canDrop = true;
 let dropCooldown = false;
+let playerLife = 3;
+let gameMode = 'normal'; // 'normal' or 'flip'
+
+function updateLifeDisplay() {
+  const hearts = ['', '🖤', '❤️❤️🖤', '❤️❤️❤️'];
+  const display = ['💀', '❤️🖤🖤', '❤️❤️🖤', '❤️❤️❤️'];
+  document.getElementById('life-display').textContent = display[Math.max(0, playerLife)];
+}
 
 const GAME_W = Math.min(400, window.innerWidth);
 const GAME_H = Math.min(560, window.innerHeight - 120);
 const WALL_T = 14;
 const FLOOR_T = 14;
+
+// ===================== BACKGROUNDS =====================
+const BG_THEMES = [
+  {
+    name: '砂漠・夕焼け', threshold: 0,
+    sky: ['#ff6b35','#f7931e','#ffcd3c','#ff4757'],
+    particles: [{emoji:'🌵',count:4},{emoji:'🌅',count:2},{emoji:'⭐',count:6}],
+    bgColor: 0x8B2500,
+  },
+  {
+    name: '夜の街', threshold: 1000,
+    sky: ['#0d0221','#1a0533','#2d1b69','#11998e'],
+    particles: [{emoji:'🏙',count:3},{emoji:'✨',count:8},{emoji:'🌙',count:2}],
+    bgColor: 0x0d0221,
+  },
+  {
+    name: '森・自然', threshold: 2000,
+    sky: ['#134e5e','#71b280','#2d5a27','#52c234'],
+    particles: [{emoji:'🌿',count:5},{emoji:'🍃',count:6},{emoji:'🌸',count:3}],
+    bgColor: 0x134e5e,
+  },
+  {
+    name: '海の中', threshold: 3000,
+    sky: ['#0052d4','#4364f7','#006fb9','#0099cc'],
+    particles: [{emoji:'🐠',count:4},{emoji:'🫧',count:8},{emoji:'🐙',count:2}],
+    bgColor: 0x0052d4,
+  },
+  {
+    name: '宇宙・星空', threshold: 4000,
+    sky: ['#000000','#0d0221','#1a0533','#16213e'],
+    particles: [{emoji:'⭐',count:10},{emoji:'🌟',count:5},{emoji:'🚀',count:2}],
+    bgColor: 0x000000,
+  },
+];
+
+function getBgTheme(score) {
+  let theme = BG_THEMES[0];
+  for (const t of BG_THEMES) {
+    if (score >= t.threshold) theme = t;
+  }
+  return theme;
+}
 
 document.getElementById('best-display').textContent = getBest();
 
@@ -362,10 +533,19 @@ class GameScene extends Phaser.Scene {
     canDrop = true;
     dropCooldown = false;
     gameScore = 0;
+    playerLife = 3;
+    updateLifeDisplay();
 
     // Matter physics
-    this.matter.world.setBounds(WALL_T, 0, GAME_W - WALL_T * 2, GAME_H - FLOOR_T, 64, true, true, false, true);
+    this.matter.world.setBounds(WALL_T, 0, GAME_W - WALL_T * 2, GAME_H - FLOOR_T, 64, true, true, true, true);
     this.matter.world.setGravity(0, 2);
+
+    // 背景
+    this.currentBgLevel = -1;
+    this.bgGraphics = this.add.graphics().setDepth(-2);
+    this.bgParticles = [];
+    this.bgAnimItems = []; // 動的アニメ用
+    this.drawBackground(0);
 
     // Guide line (drop indicator)
     this.guideLine = this.add.graphics();
@@ -377,15 +557,17 @@ class GameScene extends Phaser.Scene {
     this.add.rectangle(GAME_W - WALL_T / 2, GAME_H / 2, WALL_T, GAME_H, wallColor, wallAlpha);
     this.add.rectangle(GAME_W / 2, GAME_H - FLOOR_T / 2, GAME_W, FLOOR_T, wallColor, wallAlpha);
 
-    // Danger line
+    // Danger line (両側)
     this.dangerLine = this.add.graphics();
     this.dangerLine.lineStyle(1, 0xff4444, 0.4);
     this.dangerLine.lineBetween(WALL_T, 80, GAME_W - WALL_T, 80);
+    this.dangerLine.lineBetween(WALL_T, GAME_H - 80, GAME_W - WALL_T, GAME_H - 80);
 
     // Current fruit indicator
     this.currentFruitIdx = nextFruitIndex;
     this.dropX = GAME_W / 2;
-    this.currentPreview = this.createFruitGraphic(this.dropX, 42, this.currentFruitIdx, true);
+    const initPreviewY = 42;
+    this.currentPreview = this.createFruitGraphic(this.dropX, initPreviewY, this.currentFruitIdx, true);
 
     // Input — 最初から自由に移動、指を離したら落下
     this.input.on('pointermove', (ptr) => {
@@ -406,7 +588,33 @@ class GameScene extends Phaser.Scene {
       event.pairs.forEach(pair => this.handleCollision(pair.bodyA, pair.bodyB));
     });
 
-    startBGM();
+    // 重力反転システム（反転モードのみ有効）
+    this.gravityDir = 1;
+    this.gravityTimer = 0;
+    this.gravityInterval = 60000; // 60秒
+    this.warningShown = false;
+    this.lastCountNum = -1; // カウントダウン管理
+    this.flipGracePeriod = 0;
+    this.flipEnabled = (gameMode === 'flip');
+
+    // ライフ表示
+    document.getElementById('life-box').style.visibility = this.flipEnabled ? 'visible' : 'hidden';
+
+    // 警告テキスト
+    this.warningText = this.add.text(GAME_W / 2, GAME_H / 2, '', {
+      fontSize: '32px', fontStyle: 'bold', color: '#FF4444',
+      stroke: '#000', strokeThickness: 5
+    }).setOrigin(0.5).setAlpha(0).setDepth(10);
+
+    // 重力インジケーター（矢印）
+    this.gravityIndicator = this.add.text(GAME_W - 24, GAME_H / 2, '⬇', {
+      fontSize: '20px'
+    }).setOrigin(0.5).setDepth(10);
+
+    // カウントダウンバー
+    this.gravityBar = this.add.graphics().setDepth(9);
+
+    startBGM(this.currentBgLevel >= 0 ? this.currentBgLevel : 0);
   }
 
   createFruitGraphic(x, y, fruitIdx, isPreview = false) {
@@ -429,6 +637,9 @@ class GameScene extends Phaser.Scene {
     // Highlight
     g.fillStyle(0xffffff, 0.25);
     g.fillCircle(-f.radius * 0.28, -f.radius * 0.28, f.radius * 0.32);
+    // 白枠
+    g.lineStyle(2, 0xffffff, isPreview ? 0.4 : 0.7);
+    g.strokeCircle(0, 0, f.radius);
     g.x = x; g.y = y;
 
     // Emoji text
@@ -442,27 +653,35 @@ class GameScene extends Phaser.Scene {
 
   updatePreview() {
     if (!this.currentPreview) return;
+    const previewY = this.gravityDir === 1 ? 42 : GAME_H - 42;
     this.currentPreview.g.x = this.dropX;
+    this.currentPreview.g.y = previewY;
     this.currentPreview.txt.x = this.dropX;
+    this.currentPreview.txt.y = previewY;
     this.drawGuideLine();
   }
 
   drawGuideLine() {
     this.guideLine.clear();
     this.guideLine.lineStyle(1, 0xffffff, 0.15);
-    this.guideLine.lineBetween(this.dropX, 70, this.dropX, GAME_H - FLOOR_T);
+    if (this.gravityDir === 1) {
+      this.guideLine.lineBetween(this.dropX, 70, this.dropX, GAME_H - FLOOR_T);
+    } else {
+      this.guideLine.lineBetween(this.dropX, FLOOR_T, this.dropX, GAME_H - 70);
+    }
   }
 
   dropFruit() {
     if (dropCooldown || gameOver) return;
     dropCooldown = true;
     canDrop = false;
+    this.isHoldingFruit = false; // 落とした
     playDropSound();
 
     const isBomb = nextIsBomb;
     const idx = this.currentFruitIdx;
     const x = this.dropX;
-    const y = 55;
+    const y = this.gravityDir === 1 ? 55 : GAME_H - 55;
 
     // Remove preview
     if (this.currentPreview) {
@@ -471,6 +690,21 @@ class GameScene extends Phaser.Scene {
       this.currentPreview = null;
     }
     this.guideLine.clear();
+
+    // 落下エフェクト（軌跡の光）
+    const trailColor = nextIsBomb ? 0x555555 : Phaser.Display.Color.HexStringToColor(FRUITS[this.currentFruitIdx]?.color || '#ffffff').color;
+    for (let i = 0; i < 6; i++) {
+      const trail = this.add.graphics();
+      trail.fillStyle(trailColor, 0.4 - i * 0.06);
+      trail.fillCircle(0, 0, 6 - i);
+      trail.x = this.dropX;
+      trail.y = (this.gravityDir === 1 ? 55 : GAME_H - 55) - i * 8 * this.gravityDir;
+      this.tweens.add({
+        targets: trail, alpha: 0, scaleX: 0.1, scaleY: 0.1,
+        duration: 250 + i * 40,
+        onComplete: () => trail.destroy()
+      });
+    }
 
     if (isBomb) {
       const b = BOMBS[0];
@@ -496,9 +730,11 @@ class GameScene extends Phaser.Scene {
       dropCooldown = false;
       canDrop = true;
       this.currentFruitIdx = nextFruitIndex;
+      const previewY = this.gravityDir === 1 ? 42 : GAME_H - 42;
+      this.isHoldingFruit = true; // 次のフルーツを構えた
       this.currentPreview = nextIsBomb
-        ? this.createBombGraphic(this.dropX, 42, 0, true)
-        : this.createFruitGraphic(this.dropX, 42, this.currentFruitIdx, true);
+        ? this.createBombGraphic(this.dropX, previewY, 0, true)
+        : this.createFruitGraphic(this.dropX, previewY, this.currentFruitIdx, true);
       this.updatePreview();
     });
   }
@@ -558,9 +794,17 @@ class GameScene extends Phaser.Scene {
 
     // Score
     const pts = FRUITS[newIdx].score;
+    const prevLevel = Math.floor(gameScore / 1000);
     gameScore += pts;
     this.score = gameScore;
     document.getElementById('score-display').textContent = gameScore;
+
+    // 背景・BGM切り替えチェック
+    const newLevel = Math.floor(gameScore / 1000);
+    if (newLevel !== prevLevel) {
+      this.drawBackground(gameScore, true);
+      startBGM(this.currentBgLevel);
+    }
 
     // Score popup
     const popup = this.add.text(mx, my - 20, '+' + pts, {
@@ -585,6 +829,399 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  drawBackground(score, animated = false) {
+    const theme = getBgTheme(score);
+    const level = BG_THEMES.indexOf(theme);
+    if (level === this.currentBgLevel) return;
+    this.currentBgLevel = level;
+
+    // 既存パーティクル・アニメ削除
+    this.bgParticles.forEach(p => { if(p.destroy) p.destroy(); });
+    this.bgParticles = [];
+    this.bgAnimItems.forEach(a => { if(a.destroy) a.destroy(); });
+    this.bgAnimItems = [];
+    this.bgGraphics.clear();
+
+    const g = this.bgGraphics;
+    const W = GAME_W, H = GAME_H;
+
+    if (level === 0) {
+      // 砂漠・夕焼け
+      // 空グラデーション
+      const skyColors = [0xff4500, 0xff6b35, 0xff9a3c, 0xffcd3c, 0xff4757];
+      for (let i = 0; i < 8; i++) {
+        const t = i / 8;
+        g.fillStyle(skyColors[Math.floor(t * (skyColors.length-1))], 0.9);
+        g.fillRect(0, H * t / 2, W, H / 8 + 2);
+      }
+      // 暗オーバーレイ
+      g.fillStyle(0x000000, 0.35); g.fillRect(0, 0, W, H);
+      // 砂丘
+      g.fillStyle(0xc8a96e, 0.5);
+      g.fillEllipse(W*0.2, H*0.92, W*1.2, H*0.35);
+      g.fillStyle(0xb8956a, 0.4);
+      g.fillEllipse(W*0.75, H*0.95, W*1.0, H*0.28);
+      // 太陽
+      g.fillStyle(0xffcd3c, 0.7);
+      g.fillCircle(W*0.75, H*0.18, 28);
+      g.fillStyle(0xffcd3c, 0.2);
+      g.fillCircle(W*0.75, H*0.18, 42);
+      // 砂粒
+      for (let i = 0; i < 30; i++) {
+        g.fillStyle(0xd4a96e, 0.25);
+        g.fillCircle(Math.random()*W, H*0.6 + Math.random()*H*0.4, 1+Math.random()*2);
+      }
+
+    } else if (level === 1) {
+      // 夜の街
+      // 夜空グラデーション
+      for (let i = 0; i < 8; i++) {
+        const dark = Math.floor(15 + i * 8);
+        g.fillStyle(Phaser.Display.Color.GetColor(dark, dark*0.4, dark*1.5), 0.9);
+        g.fillRect(0, H * i / 8, W, H / 8 + 2);
+      }
+      g.fillStyle(0x000000, 0.3); g.fillRect(0, 0, W, H);
+      // 月
+      g.fillStyle(0xfffde7, 0.7); g.fillCircle(W*0.2, H*0.12, 18);
+      g.fillStyle(0x0d0221, 0.7); g.fillCircle(W*0.23, H*0.11, 15);
+      // ビル群
+      const buildings = [
+        {x:0,   w:45, h:180, win:[[8,20],[8,50],[8,80],[8,110],[25,20],[25,50],[25,80]]},
+        {x:40,  w:35, h:220, win:[[5,15],[5,45],[5,75],[5,105],[5,135],[18,15],[18,45],[18,75],[18,105]]},
+        {x:70,  w:50, h:150, win:[[8,20],[8,50],[8,80],[25,20],[25,50],[25,80],[38,20]]},
+        {x:115, w:40, h:200, win:[[6,15],[6,45],[6,75],[6,105],[20,15],[20,45],[20,75]]},
+        {x:150, w:55, h:170, win:[[8,20],[8,50],[8,80],[25,20],[25,50],[40,20],[40,50]]},
+        {x:200, w:38, h:240, win:[[5,15],[5,45],[5,75],[5,105],[5,135],[18,15],[18,45],[18,75]]},
+        {x:232, w:45, h:190, win:[[6,20],[6,50],[6,80],[6,110],[22,20],[22,50],[22,80],[34,20]]},
+        {x:272, w:60, h:160, win:[[8,20],[8,50],[8,80],[25,20],[25,50],[25,80],[42,20],[42,50]]},
+        {x:328, w:40, h:210, win:[[5,15],[5,45],[5,75],[5,105],[5,135],[20,15],[20,45],[20,75]]},
+        {x:362, w:50, h:180, win:[[6,20],[6,50],[6,80],[6,110],[22,20],[22,50],[22,80]]},
+      ];
+      buildings.forEach(b => {
+        g.fillStyle(0x1a1a2e, 0.85);
+        g.fillRect(b.x, H - b.h, b.w, b.h);
+        b.win.forEach(([wx, wy]) => {
+          if (Math.random() > 0.35) {
+            g.fillStyle(Math.random() > 0.5 ? 0xffeb3b : 0x80cbc4, 0.7);
+            g.fillRect(b.x + wx, H - b.h + wy, 6, 8);
+          }
+        });
+      });
+      // 星
+      for (let i = 0; i < 40; i++) {
+        g.fillStyle(0xffffff, 0.3 + Math.random()*0.4);
+        g.fillCircle(Math.random()*W, Math.random()*H*0.5, 0.8+Math.random()*1.2);
+      }
+
+    } else if (level === 2) {
+      // 森・自然
+      for (let i = 0; i < 8; i++) {
+        const t = i / 8;
+        const r = Math.floor(10 + t*30), gv = Math.floor(40 + t*80), b2 = Math.floor(20 + t*40);
+        g.fillStyle(Phaser.Display.Color.GetColor(r, gv, b2), 0.9);
+        g.fillRect(0, H*t/8, W, H/8+2);
+      }
+      g.fillStyle(0x000000, 0.38); g.fillRect(0, 0, W, H);
+      // 光の筋（木漏れ日）
+      for (let i = 0; i < 6; i++) {
+        const lx = 30 + i * 60 + Math.random()*20;
+        g.fillStyle(0xffeb3b, 0.04 + Math.random()*0.04);
+        g.fillTriangle(lx, 0, lx-15, H, lx+15, H);
+      }
+      // 遠景の木
+      const drawTree = (tx, ty, size, dark) => {
+        g.fillStyle(dark ? 0x1b4332 : 0x2d6a4f, 0.6);
+        g.fillTriangle(tx, ty, tx-size*0.6, ty+size, tx+size*0.6, ty+size);
+        g.fillTriangle(tx, ty+size*0.4, tx-size*0.45, ty+size*1.3, tx+size*0.45, ty+size*1.3);
+        g.fillStyle(dark ? 0x1a3a2a : 0x264d3b, 0.6);
+        g.fillRect(tx-size*0.1, ty+size*1.3, size*0.2, size*0.5);
+      };
+      [[W*0.05,H*0.35,55,true],[W*0.18,H*0.25,70,false],[W*0.35,H*0.30,60,true],
+       [W*0.55,H*0.22,80,false],[W*0.70,H*0.30,65,true],[W*0.85,H*0.28,75,false],
+       [W*0.95,H*0.35,50,true]].forEach(([tx,ty,sz,dk]) => drawTree(tx,ty,sz,dk));
+      // 草地
+      g.fillStyle(0x1b4332, 0.5); g.fillEllipse(W/2, H*0.98, W*1.2, H*0.15);
+      // 蛍
+      for (let i = 0; i < 12; i++) {
+        g.fillStyle(0xccff00, 0.25+Math.random()*0.2);
+        g.fillCircle(WALL_T+10+Math.random()*(W-WALL_T*2-20), H*0.3+Math.random()*H*0.5, 2+Math.random()*2);
+      }
+
+    } else if (level === 3) {
+      // 海の中
+      for (let i = 0; i < 10; i++) {
+        const t = i / 10;
+        const r = Math.floor(0 + t*5), gv = Math.floor(60 + t*40), b2 = Math.floor(120 + t*80);
+        g.fillStyle(Phaser.Display.Color.GetColor(r, gv, b2), 0.9);
+        g.fillRect(0, H*t/10, W, H/10+2);
+      }
+      g.fillStyle(0x000000, 0.42); g.fillRect(0, 0, W, H);
+      // 光の揺らぎ
+      for (let i = 0; i < 8; i++) {
+        const lx = 20 + i * 50;
+        g.fillStyle(0x00bcd4, 0.04);
+        g.fillTriangle(lx, 0, lx-20, H*0.6, lx+20, H*0.6);
+      }
+      // 珊瑚
+      const drawCoral = (cx, cy, col) => {
+        g.fillStyle(col, 0.5);
+        g.fillRect(cx, cy, 6, 40);
+        g.fillRect(cx-8, cy+10, 5, 25);
+        g.fillRect(cx+9, cy+15, 5, 20);
+        g.fillCircle(cx+3, cy, 7);
+        g.fillCircle(cx-5, cy+10, 5);
+        g.fillCircle(cx+12, cy+15, 5);
+      };
+      [[40,H-60,0xff4757],[80,H-80,0xff6348],[130,H-55,0xff7f50],[200,H-70,0xff4757],
+       [260,H-65,0xffa502],[310,H-75,0xff6b81],[360,H-60,0xff4757]].forEach(([cx,cy,c])=>drawCoral(cx,cy,c));
+      // 泡
+      for (let i = 0; i < 20; i++) {
+        g.lineStyle(1, 0x80deea, 0.2+Math.random()*0.2);
+        g.strokeCircle(WALL_T+10+Math.random()*(W-WALL_T*2-20), H*0.1+Math.random()*H*0.8, 3+Math.random()*8);
+      }
+      // 砂地
+      g.fillStyle(0xc8a96e, 0.3); g.fillEllipse(W/2, H, W*1.3, H*0.12);
+
+    } else {
+      // 宇宙・星空
+      g.fillStyle(0x000000, 1); g.fillRect(0, 0, W, H);
+      // 星雲
+      g.fillStyle(0x3d0066, 0.15); g.fillEllipse(W*0.3, H*0.3, W*0.7, H*0.4);
+      g.fillStyle(0x000066, 0.12); g.fillEllipse(W*0.7, H*0.6, W*0.6, H*0.35);
+      g.fillStyle(0x003333, 0.1);  g.fillEllipse(W*0.5, H*0.5, W*0.5, H*0.5);
+      // 星（大小）
+      for (let i = 0; i < 80; i++) {
+        const sz = Math.random();
+        g.fillStyle(0xffffff, 0.3 + Math.random()*0.5);
+        g.fillCircle(Math.random()*W, Math.random()*H, sz < 0.7 ? 0.8 : (sz < 0.9 ? 1.5 : 2.5));
+      }
+      // 惑星
+      g.fillStyle(0x4169e1, 0.6); g.fillCircle(W*0.8, H*0.15, 16);
+      g.fillStyle(0x1a237e, 0.4); g.fillCircle(W*0.8, H*0.15, 16);
+      g.lineStyle(2, 0x90caf9, 0.3);
+      g.strokeEllipse(W*0.8, H*0.15, 50, 12);
+      // 流れ星
+      g.lineStyle(1, 0xffffff, 0.4);
+      g.lineBetween(W*0.1, H*0.08, W*0.22, H*0.12);
+      g.lineStyle(1, 0xffffff, 0.2);
+      g.lineBetween(W*0.6, H*0.2, W*0.68, H*0.23);
+    }
+
+    // ===== 動的アニメ =====
+    if (level === 0) {
+      // 砂漠：砂粒が右から左へ流れる
+      for (let i = 0; i < 18; i++) {
+        const sx = Math.random() * W;
+        const sy = H * 0.5 + Math.random() * H * 0.45;
+        const p = this.add.graphics().setDepth(-1);
+        p.fillStyle(0xd4a96e, 0.25 + Math.random()*0.2);
+        p.fillCircle(0, 0, 1 + Math.random()*2.5);
+        p.x = sx; p.y = sy;
+        this.bgAnimItems.push(p);
+        this.tweens.add({
+          targets: p, x: sx - W * (0.3 + Math.random()*0.4),
+          y: sy + (Math.random()*30 - 15),
+          duration: 3000 + Math.random()*3000,
+          repeat: -1, ease: 'Linear',
+          onRepeat: () => { p.x = W + 10; p.y = H*0.5+Math.random()*H*0.45; }
+        });
+      }
+      // 砂漠：陽炎（ゆらゆら線）
+      for (let i = 0; i < 5; i++) {
+        const hx = WALL_T + 20 + i * ((W-WALL_T*2) / 5);
+        const hy = H * 0.55 + Math.random() * H * 0.2;
+        const hg = this.add.graphics().setDepth(-1);
+        hg.lineStyle(1, 0xffcd3c, 0.08);
+        hg.lineBetween(0, 0, 0, 30);
+        hg.x = hx; hg.y = hy;
+        this.bgAnimItems.push(hg);
+        this.tweens.add({
+          targets: hg, x: hx + 4, scaleY: 1.3, alpha: 0.04,
+          duration: 800 + Math.random()*400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+        });
+      }
+
+    } else if (level === 1) {
+      // 夜の街：窓がランダム点滅
+      const winColors = [0xffeb3b, 0x80cbc4, 0xffa726, 0xef9a9a];
+      for (let i = 0; i < 22; i++) {
+        const wx = WALL_T + 10 + Math.random() * (W - WALL_T*2 - 20);
+        const wy = H * 0.45 + Math.random() * H * 0.45;
+        const wg = this.add.graphics().setDepth(-1);
+        const wc = winColors[Math.floor(Math.random()*winColors.length)];
+        wg.fillStyle(wc, 0.7);
+        wg.fillRect(0, 0, 6, 8);
+        wg.x = wx; wg.y = wy;
+        this.bgAnimItems.push(wg);
+        // ランダム点滅
+        const blinkFn = () => {
+          if (gameOver) return;
+          const onTime = 800 + Math.random()*3000;
+          const offTime = 500 + Math.random()*2000;
+          this.tweens.add({
+            targets: wg, alpha: 0, duration: 80,
+            delay: onTime,
+            onComplete: () => {
+              this.tweens.add({ targets: wg, alpha: 0.7, duration: 80,
+                delay: offTime, onComplete: blinkFn });
+            }
+          });
+        };
+        this.time.delayedCall(Math.random()*3000, blinkFn);
+      }
+      // 流れる車のライト
+      for (let i = 0; i < 3; i++) {
+        const cg = this.add.graphics().setDepth(-1);
+        cg.fillStyle(0xffeb3b, 0.5); cg.fillCircle(0, 0, 2);
+        cg.fillStyle(0xff4757, 0.4); cg.fillCircle(8, 0, 2);
+        cg.x = -10; cg.y = H * 0.82 + i * 8;
+        this.bgAnimItems.push(cg);
+        this.tweens.add({
+          targets: cg, x: W + 10,
+          duration: 4000 + Math.random()*3000,
+          delay: i * 2000,
+          repeat: -1, ease: 'Linear'
+        });
+      }
+
+    } else if (level === 2) {
+      // 森：葉っぱが舞い落ちる
+      const leafEmojis = ['🍃','🍂','🌿','🍀'];
+      for (let i = 0; i < 12; i++) {
+        const lx = WALL_T + 10 + Math.random()*(W-WALL_T*2-20);
+        const leaf = this.add.text(lx, -20, leafEmojis[Math.floor(Math.random()*leafEmojis.length)], {
+          fontSize: (10+Math.random()*10)+'px'
+        }).setAlpha(0.55).setDepth(-1);
+        this.bgAnimItems.push(leaf);
+        const duration = 4000 + Math.random()*4000;
+        this.tweens.add({
+          targets: leaf,
+          y: H + 20,
+          x: lx + (Math.random()*80 - 40),
+          rotation: Math.random()*Math.PI*4,
+          duration, delay: Math.random()*5000,
+          repeat: -1, ease: 'Linear',
+          onRepeat: () => {
+            leaf.x = WALL_T+10+Math.random()*(W-WALL_T*2-20);
+            leaf.y = -20;
+          }
+        });
+      }
+      // 蛍がふわふわ
+      for (let i = 0; i < 8; i++) {
+        const fx = WALL_T+10+Math.random()*(W-WALL_T*2-20);
+        const fy = H*0.3+Math.random()*H*0.5;
+        const fg = this.add.graphics().setDepth(-1);
+        fg.fillStyle(0xccff00, 0.6); fg.fillCircle(0, 0, 2.5);
+        fg.x = fx; fg.y = fy;
+        this.bgAnimItems.push(fg);
+        this.tweens.add({
+          targets: fg,
+          x: fx + (Math.random()*60-30),
+          y: fy + (Math.random()*60-30),
+          alpha: 0.1,
+          duration: 1500+Math.random()*1500,
+          yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+        });
+      }
+
+    } else if (level === 3) {
+      // 海：泡が下から上に浮かぶ
+      for (let i = 0; i < 16; i++) {
+        const bx = WALL_T+10+Math.random()*(W-WALL_T*2-20);
+        const bg2 = this.add.graphics().setDepth(-1);
+        bg2.lineStyle(1.5, 0x80deea, 0.4);
+        bg2.strokeCircle(0, 0, 3+Math.random()*6);
+        bg2.x = bx; bg2.y = H + 10;
+        this.bgAnimItems.push(bg2);
+        this.tweens.add({
+          targets: bg2,
+          y: -20,
+          x: bx + (Math.random()*30-15),
+          alpha: 0,
+          duration: 3000+Math.random()*3000,
+          delay: Math.random()*4000,
+          repeat: -1, ease: 'Linear',
+          onRepeat: () => { bg2.x = WALL_T+10+Math.random()*(W-WALL_T*2-20); bg2.y = H+10; bg2.alpha = 0.4; }
+        });
+      }
+      // 魚が泳ぐ
+      const fishEmojis = ['🐠','🐟','🐡'];
+      for (let i = 0; i < 4; i++) {
+        const fy = H*0.2+Math.random()*H*0.6;
+        const dir = Math.random()>0.5 ? 1 : -1;
+        const fish = this.add.text(dir>0?-20:W+20, fy, fishEmojis[i%fishEmojis.length], {
+          fontSize:(14+Math.random()*10)+'px'
+        }).setAlpha(0.5).setDepth(-1).setFlipX(dir<0);
+        this.bgAnimItems.push(fish);
+        this.tweens.add({
+          targets: fish, x: dir>0?W+20:-20,
+          duration: 5000+Math.random()*4000,
+          delay: Math.random()*6000,
+          repeat: -1, ease: 'Linear',
+          onRepeat: () => {
+            fish.x = dir>0?-20:W+20;
+            fish.y = H*0.2+Math.random()*H*0.6;
+          }
+        });
+      }
+
+    } else {
+      // 宇宙：流れ星・星のきらめき
+      for (let i = 0; i < 8; i++) {
+        const sg = this.add.graphics().setDepth(-1);
+        sg.lineStyle(1.5, 0xffffff, 0.7);
+        sg.lineBetween(0, 0, 20, 6);
+        sg.x = W + 30; sg.y = Math.random()*H*0.5;
+        this.bgAnimItems.push(sg);
+        this.tweens.add({
+          targets: sg, x: -30, y: sg.y + 80,
+          duration: 1500+Math.random()*2000,
+          delay: Math.random()*8000,
+          repeat: -1, ease: 'Linear',
+          onRepeat: () => { sg.x = W+30; sg.y = Math.random()*H*0.5; }
+        });
+      }
+      // 星のきらめき
+      for (let i = 0; i < 20; i++) {
+        const sx = Math.random()*W, sy = Math.random()*H;
+        const sg2 = this.add.graphics().setDepth(-1);
+        sg2.fillStyle(0xffffff, 0.8); sg2.fillCircle(sx, sy, 1.2);
+        this.bgAnimItems.push(sg2);
+        this.tweens.add({
+          targets: sg2, alpha: 0.1,
+          duration: 800+Math.random()*1200,
+          yoyo: true, repeat: -1,
+          delay: Math.random()*3000,
+          ease: 'Sine.easeInOut'
+        });
+      }
+      // 惑星の輪が回る
+      const ringG = this.add.graphics().setDepth(-1);
+      ringG.lineStyle(2, 0x90caf9, 0.3);
+      ringG.strokeEllipse(W*0.8, H*0.15, 50, 12);
+      this.bgAnimItems.push(ringG);
+      this.tweens.add({
+        targets: ringG, scaleX: 1.15, scaleY: 0.85,
+        duration: 3000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+      });
+    }
+
+    // 切り替え演出
+    if (animated) {
+      const themeName = this.add.text(GAME_W/2, GAME_H/2, theme.name, {
+        fontSize: '26px', fontStyle: 'bold', color: '#ffffff',
+        stroke: '#000', strokeThickness: 4
+      }).setOrigin(0.5).setDepth(15).setAlpha(0);
+      this.tweens.add({
+        targets: themeName, alpha: 1, y: GAME_H/2 - 20,
+        duration: 400, hold: 800, yoyo: true,
+        onComplete: () => themeName.destroy()
+      });
+      this.cameras.main.flash(500, 255, 255, 255, false);
+    }
+  }
+
   removeFruit(fruit) {
     this.fruits = this.fruits.filter(f => f !== fruit);
     fruit.gfx.g.destroy();
@@ -602,6 +1239,9 @@ class GameScene extends Phaser.Scene {
     g.fillCircle(0, 0, b.radius);
     g.fillStyle(0xffffff, 0.2);
     g.fillCircle(-b.radius * 0.25, -b.radius * 0.25, b.radius * 0.3);
+    // 白枠
+    g.lineStyle(2, 0xffffff, isPreview ? 0.4 : 0.7);
+    g.strokeCircle(0, 0, b.radius);
     g.x = x; g.y = y;
     const txt = this.add.text(x, y, b.emoji, {
       fontSize: Math.floor(b.radius * 1.7) + 'px', align: 'center'
@@ -770,19 +1410,21 @@ class GameScene extends Phaser.Scene {
       });
     }
 
-    // 2. 大量パーティクル（2層）
-    for (let layer = 0; layer < 2; layer++) {
-      const count = layer === 0 ? 20 : 12;
-      const baseSpeed = layer === 0 ? 100 : 180;
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2 + (layer * Math.PI / count);
-        const speed = baseSpeed + Math.random() * 80;
-        const size = layer === 0 ? 3 + Math.random() * 5 : 2 + Math.random() * 3;
+    // 2. 大量パーティクル（3層・レベルで増加）
+    const layerDefs = [
+      { count: 24 + level * 3, baseSpeed: 90,  size: [3,6],  shape: 'circle', delay: 0   },
+      { count: 16 + level * 2, baseSpeed: 160, size: [2,4],  shape: 'tri',    delay: 40  },
+      { count: 10 + level,     baseSpeed: 230, size: [1,3],  shape: 'circle', delay: 80  },
+    ];
+    layerDefs.forEach((def, layer) => {
+      for (let i = 0; i < def.count; i++) {
+        const angle = (i / def.count) * Math.PI * 2 + (layer * Math.PI / def.count);
+        const speed = def.baseSpeed + Math.random() * 80;
+        const size = def.size[0] + Math.random() * (def.size[1] - def.size[0]);
         const p = this.add.graphics();
         p.fillStyle(cols[i % cols.length], 1);
-        // 星形 or 丸
-        if (i % 3 === 0) {
-          p.fillTriangle(-size, size, size, size, 0, -size * 1.5);
+        if (def.shape === 'tri') {
+          p.fillTriangle(-size, size, size, size, 0, -size * 1.6);
         } else {
           p.fillCircle(0, 0, size);
         }
@@ -793,11 +1435,54 @@ class GameScene extends Phaser.Scene {
           y: y + Math.sin(angle) * speed,
           alpha: 0,
           scaleX: 0.1, scaleY: 0.1,
-          rotation: Math.random() * Math.PI * 4,
-          duration: 600 + Math.random() * 400,
-          delay: layer * 40,
+          rotation: Math.random() * Math.PI * 6,
+          duration: 500 + Math.random() * 600,
+          delay: def.delay + Math.random() * 30,
           ease: 'Cubic.easeOut',
           onComplete: () => p.destroy()
+        });
+      }
+    });
+
+    // 2b. レベル高いほど放射状の線（スパーク）
+    if (level >= 4) {
+      const sparkCount = 8 + level * 2;
+      for (let i = 0; i < sparkCount; i++) {
+        const angle = (i / sparkCount) * Math.PI * 2;
+        const len = 30 + level * 8 + Math.random() * 30;
+        const sg = this.add.graphics();
+        sg.lineStyle(1.5, cols[i % cols.length], 1);
+        sg.lineBetween(0, 0, Math.cos(angle)*len*0.3, Math.sin(angle)*len*0.3);
+        sg.x = x; sg.y = y;
+        this.tweens.add({
+          targets: sg,
+          x: x + Math.cos(angle) * len,
+          y: y + Math.sin(angle) * len,
+          alpha: 0, scaleX: 0.3, scaleY: 0.3,
+          duration: 350 + Math.random() * 200,
+          ease: 'Cubic.easeOut',
+          onComplete: () => sg.destroy()
+        });
+      }
+    }
+
+    // 2c. レベル最大付近は紙吹雪（四角）
+    if (level >= 7) {
+      for (let i = 0; i < 20; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed2 = 80 + Math.random() * 150;
+        const conf = this.add.graphics();
+        conf.fillStyle(cols[i % cols.length], 1);
+        conf.fillRect(0, 0, 4 + Math.random()*4, 3 + Math.random()*3);
+        conf.x = x; conf.y = y;
+        this.tweens.add({
+          targets: conf,
+          x: x + Math.cos(angle) * speed2,
+          y: y + Math.sin(angle) * speed2 + 40,
+          alpha: 0, rotation: Math.random() * Math.PI * 8,
+          duration: 700 + Math.random() * 500,
+          ease: 'Cubic.easeOut',
+          onComplete: () => conf.destroy()
         });
       }
     }
@@ -843,7 +1528,7 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  update() {
+  update(time, delta) {
     if (gameOver) return;
 
     // Sync graphics to physics
@@ -858,12 +1543,179 @@ class GameScene extends Phaser.Scene {
       fruit.gfx.txt.rotation = angle;
     });
 
-    // Game over check — fruit stays above danger line
-    if (!dropCooldown) {
+    // 反転猶予タイマー
+    if (this.flipGracePeriod > 0) this.flipGracePeriod -= delta;
+
+    // 重力反転タイマー（反転モードのみ）
+    if (!this.flipEnabled) {
+      // 通常モード：ゲームオーバー判定のみ（下方向固定）
+      if (!dropCooldown) {
+        for (const fruit of this.fruits) {
+          const vel = fruit.body.velocity;
+          const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+          if (fruit.body.position.y < 80 && speed < 0.5) {
+            this.triggerGameOver();
+            return;
+          }
+        }
+      }
+      return;
+    }
+    this.gravityTimer += delta;
+    const remaining = this.gravityInterval - this.gravityTimer;
+    const progress = this.gravityTimer / this.gravityInterval;
+
+    // カウントダウンバー描画
+    this.gravityBar.clear();
+    const barW = (GAME_W - WALL_T * 2) * (1 - progress);
+    const barColor = remaining < 1500 ? 0xFF4444 : (remaining < 3000 ? 0xFF9900 : 0x4488FF);
+    this.gravityBar.fillStyle(barColor, 0.7);
+    this.gravityBar.fillRect(WALL_T, GAME_H - FLOOR_T - 6, barW, 4);
+
+    // カウントダウン（残り3秒から）
+    if (remaining <= 3000) {
+      const countNum = Math.ceil(remaining / 1000); // 3,2,1
+      if (countNum !== this.lastCountNum && countNum >= 1) {
+        this.lastCountNum = countNum;
+        const isLast = countNum === 1;
+        const dir = this.gravityDir === 1 ? '⬆' : '⬇';
+        this.warningText.setText(isLast ? dir + ' 反転!' : String(countNum));
+        this.warningText.setStyle({
+          fontSize: isLast ? '40px' : '64px',
+          fontStyle: 'bold',
+          color: isLast ? '#FF4444' : (countNum === 2 ? '#FF9900' : '#FFFF00'),
+          stroke: '#000',
+          strokeThickness: 6
+        });
+        this.warningText.setAlpha(1).setScale(1.5);
+        this.tweens.killTweensOf(this.warningText);
+        this.tweens.add({
+          targets: this.warningText,
+          scaleX: 1, scaleY: 1,
+          duration: 150,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            if (!isLast) {
+              this.tweens.add({
+                targets: this.warningText,
+                alpha: 0, duration: 600, delay: 200
+              });
+            } else {
+              this.tweens.add({
+                targets: this.warningText,
+                alpha: 0, duration: 300, delay: 400
+              });
+            }
+          }
+        });
+        // カウント音
+        if (soundEnabled) {
+          try {
+            const ctx = getAudioCtx();
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.connect(g); g.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = isLast ? 880 : 660;
+            g.gain.setValueAtTime(0.2, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+            osc.start(); osc.stop(ctx.currentTime + 0.15);
+          } catch(e) {}
+        }
+      }
+    }
+
+    // 重力反転実行
+    if (this.gravityTimer >= this.gravityInterval) {
+      this.gravityTimer = 0;
+      this.warningShown = false;
+      this.lastCountNum = -1;
+      this.gravityDir *= -1;
+      this.matter.world.setGravity(0, 2 * this.gravityDir);
+      this.flipGracePeriod = 2000; // 反転後2秒はゲームオーバー判定しない
+
+      // フルーツを構えている間だけライフ減少
+      if (this.isHoldingFruit) {
+        playerLife--;
+        updateLifeDisplay();
+
+        // ダメージエフェクト
+        const dmg = this.add.text(GAME_W / 2, GAME_H / 2 - 40, '💔 -1', {
+          fontSize: '36px', fontStyle: 'bold', color: '#FF4444',
+          stroke: '#000', strokeThickness: 4
+        }).setOrigin(0.5).setDepth(20);
+        this.tweens.add({
+          targets: dmg, y: GAME_H / 2 - 100, alpha: 0, duration: 1000,
+          onComplete: () => dmg.destroy()
+        });
+
+        // 赤点滅（3回）
+        const redFlash = this.add.rectangle(GAME_W/2, GAME_H/2, GAME_W, GAME_H, 0xFF0000, 0).setDepth(19);
+        this.tweens.add({
+          targets: redFlash,
+          alpha: { from: 0, to: 0.45 },
+          duration: 120,
+          yoyo: true,
+          repeat: 2,
+          onComplete: () => redFlash.destroy()
+        });
+
+        // 画面揺れ（強め）
+        this.cameras.main.shake(500, 0.022);
+
+        // CSS側でも赤枠を点滅
+        const canvas = document.querySelector('#phaser-game canvas');
+        if (canvas) {
+          canvas.style.transition = 'box-shadow 0.1s';
+          canvas.style.boxShadow = '0 0 0 6px #FF0000';
+          setTimeout(() => { canvas.style.boxShadow = '0 0 0 6px #FF000088'; }, 120);
+          setTimeout(() => { canvas.style.boxShadow = '0 0 0 6px #FF0000'; }, 240);
+          setTimeout(() => { canvas.style.boxShadow = 'none'; canvas.style.transition = ''; }, 500);
+        }
+
+        // ライフ0でゲームオーバー
+        if (playerLife <= 0) {
+          this.time.delayedCall(500, () => this.triggerGameOver());
+        }
+      }
+
+      // 境界を反転（天井・床どちらも有効）
+      this.matter.world.setBounds(WALL_T, 0, GAME_W - WALL_T * 2, GAME_H - FLOOR_T, 64, true, true, true, true);
+
+      // インジケーター更新
+      this.gravityIndicator.setText(this.gravityDir === 1 ? '⬇' : '⬆');
+
+      // 反転エフェクト
+      this.cameras.main.shake(300, 0.012);
+      const flipFlash = this.add.rectangle(GAME_W/2, GAME_H/2, GAME_W, GAME_H, 0x4488FF, 0.3);
+      this.tweens.add({ targets: flipFlash, alpha: 0, duration: 500, onComplete: () => flipFlash.destroy() });
+
+      // 反転音
+      if (soundEnabled) {
+        try {
+          const ctx = getAudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(this.gravityDir === 1 ? 800 : 400, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(this.gravityDir === 1 ? 400 : 800, ctx.currentTime + 0.3);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+          osc.start(); osc.stop(ctx.currentTime + 0.4);
+        } catch(e) {}
+      }
+    }
+
+    // ゲームオーバー判定（重力方向に応じて危険ラインを変える）
+    if (!dropCooldown && !(this.flipGracePeriod > 0)) {
       for (const fruit of this.fruits) {
         const vel = fruit.body.velocity;
         const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
-        if (fruit.body.position.y < 80 && speed < 0.5) {
+        const isOverLimit = this.gravityDir === 1
+          ? fruit.body.position.y < 80
+          : fruit.body.position.y > GAME_H - 80;
+        if (isOverLimit && speed < 0.5) {
           this.triggerGameOver();
           return;
         }
@@ -875,12 +1727,86 @@ class GameScene extends Phaser.Scene {
     if (gameOver) return;
     gameOver = true;
     canDrop = false;
+    stopBGM();
 
-    // Flash
-    const flash = this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0xff0000, 0.3);
-    this.tweens.add({ targets: flash, alpha: 0, duration: 600, onComplete: () => flash.destroy() });
+    // 1. 強いシェイク
+    this.cameras.main.shake(600, 0.03);
 
-    this.time.delayedCall(800, () => {
+    // 2. 赤フラッシュ3連
+    const flash = this.add.rectangle(GAME_W/2, GAME_H/2, GAME_W, GAME_H, 0xff0000, 0);
+    this.tweens.add({
+      targets: flash, alpha: { from: 0, to: 0.6 },
+      duration: 100, yoyo: true, repeat: 2,
+      onComplete: () => flash.destroy()
+    });
+
+    // 3. 全フルーツが弾け飛ぶ
+    this.fruits.forEach((fruit, i) => {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 200 + Math.random() * 200;
+      this.tweens.add({
+        targets: [fruit.gfx.g, fruit.gfx.txt],
+        x: fruit.body.position.x + Math.cos(angle) * speed,
+        y: fruit.body.position.y + Math.sin(angle) * speed,
+        alpha: 0, rotation: Math.random() * Math.PI * 4,
+        scaleX: 0.1, scaleY: 0.1,
+        duration: 600 + Math.random() * 300,
+        delay: i * 20,
+        ease: 'Cubic.easeOut'
+      });
+    });
+
+    // 4. GAME OVER テキスト
+    const goText = this.add.text(GAME_W/2, GAME_H/2, 'GAME\nOVER', {
+      fontSize: '52px', fontStyle: 'bold', color: '#FF0000',
+      stroke: '#000', strokeThickness: 6, align: 'center'
+    }).setOrigin(0.5).setAlpha(0).setDepth(20).setScale(2);
+    this.tweens.add({
+      targets: goText, alpha: 1, scaleX: 1, scaleY: 1,
+      duration: 400, ease: 'Back.easeOut'
+    });
+
+    // 5. 破片パーティクル
+    const colors = [0xFF0000, 0xFF4444, 0xFF8888, 0xFFFFFF];
+    for (let i = 0; i < 40; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 100 + Math.random() * 200;
+      const p = this.add.graphics().setDepth(18);
+      p.fillStyle(colors[i % colors.length], 1);
+      p.fillRect(0, 0, 3 + Math.random()*5, 3 + Math.random()*5);
+      p.x = GAME_W/2; p.y = GAME_H/2;
+      this.tweens.add({
+        targets: p,
+        x: GAME_W/2 + Math.cos(angle)*speed,
+        y: GAME_H/2 + Math.sin(angle)*speed,
+        alpha: 0, rotation: Math.random()*Math.PI*6,
+        duration: 800 + Math.random()*400,
+        ease: 'Cubic.easeOut',
+        onComplete: () => p.destroy()
+      });
+    }
+
+    // 6. ゲームオーバー音
+    if (soundEnabled) {
+      try {
+        const ctx = getAudioCtx();
+        [0, 0.15, 0.3].forEach((delay, i) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.connect(g); g.connect(ctx.destination);
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(300 - i*80, ctx.currentTime + delay);
+          osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + delay + 0.4);
+          g.gain.setValueAtTime(0.3, ctx.currentTime + delay);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.5);
+          osc.start(ctx.currentTime + delay);
+          osc.stop(ctx.currentTime + delay + 0.5);
+        });
+      } catch(e) {}
+    }
+
+    this.time.delayedCall(1200, () => {
+      goText.destroy();
       const isNew = saveRanking(gameScore);
       document.getElementById('final-score').textContent = gameScore;
       document.getElementById('new-record-msg').style.display = isNew ? 'block' : 'none';
@@ -895,7 +1821,7 @@ const config = {
   type: Phaser.AUTO,
   width: GAME_W,
   height: GAME_H,
-  backgroundColor: '#0d0826',
+  backgroundColor: '#000000',
   parent: 'phaser-game',
   banner: false,
   physics: {
@@ -909,6 +1835,7 @@ const config = {
 };
 
 let game = new Phaser.Game(config);
+game.scene.stop('GameScene'); // タイトル画面から始める
 
 // ===================== UI BUTTONS =====================
 document.getElementById('btn-restart').addEventListener('click', restartGame);
@@ -927,9 +1854,45 @@ function restartGame() {
 document.getElementById('btn-sound').addEventListener('click', () => {
   soundEnabled = !soundEnabled;
   document.getElementById('btn-sound').textContent = soundEnabled ? '🔊 音' : '🔇 音';
-  if (!soundEnabled && bgmNodes) {
-    try { bgmNodes.masterGain.gain.value = 0; } catch(e) {}
+  if (!soundEnabled) {
+    stopBGM();
+  } else {
+    startBGM(bgmLevel >= 0 ? bgmLevel : 0);
   }
+});
+
+// ===================== TITLE SCREEN =====================
+document.getElementById('btn-mode-normal').addEventListener('click', () => {
+  gameMode = 'normal';
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('game-container').style.display = 'flex';
+  rollNext();
+  drawNextFruit(nextFruitIndex);
+  game.scene.start('GameScene');
+});
+document.getElementById('btn-mode-flip').addEventListener('click', () => {
+  gameMode = 'flip';
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('game-container').style.display = 'flex';
+  rollNext();
+  drawNextFruit(nextFruitIndex);
+  game.scene.start('GameScene');
+});
+
+// リスタート時にタイトルに戻る
+document.getElementById('btn-restart').removeEventListener('click', restartGame);
+document.getElementById('btn-restart').addEventListener('click', () => {
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('title-screen').style.display = 'flex';
+  game.scene.stop('GameScene');
+});
+document.getElementById('restart-btn').removeEventListener('click', restartGame);
+document.getElementById('restart-btn').addEventListener('click', () => {
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('title-screen').style.display = 'flex';
+  game.scene.stop('GameScene');
 });
 
 document.getElementById('btn-ranking').addEventListener('click', () => {
