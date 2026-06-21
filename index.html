@@ -295,129 +295,41 @@ function playDropSound() {
   } catch(e) {}
 }
 
-// ===================== BGM SYSTEM =====================
+// ===================== BGM SYSTEM (royalty-free tracks) =====================
 let bgmLevel = -1;
-let bgmLoopTimer = null;
+let bgmAudio = null;
+const BGM_VOL = 0.5;
+const bgmCache = {};
 
-// 各ステージのBGMデータ
-const BGM_DATA = [
-  // 0: 砂漠・夕焼け
-  { bpm:82, vol:0.085, type:'triangle', lead:'triangle',
-    melody:[220,246.9,261.6,293.7,329.6,293.7,261.6,246.9,220,196,220,246.9,293.7,261.6,220,196],
-    bass:[110,110,130.8,130.8,110,110,98,98,110,110,130.8,130.8,110,110,98,98],
-    mDur:0.55, bDur:0.9, perc:0.35, pad:0.22, arp:0.10 },
-  // 1: 夜の街
-  { bpm:104, vol:0.085, type:'sine', lead:'square',
-    melody:[311.1,277.2,261.6,233.1,246.9,261.6,233.1,207.7,220,246.9,261.6,277.2,311.1,277.2,261.6,233.1],
-    bass:[116.5,116.5,130.8,130.8,116.5,116.5,103.8,103.8,110,110,130.8,130.8,116.5,116.5,103.8,103.8],
-    mDur:0.4, bDur:0.7, perc:0.6, pad:0.18, arp:0.14 },
-  // 2: 森・自然
-  { bpm:124, vol:0.085, type:'triangle', lead:'triangle',
-    melody:[261.6,329.6,392,440,392,329.6,293.7,261.6,293.7,349.2,392,440,493.9,440,392,329.6],
-    bass:[130.8,130.8,164.8,164.8,146.8,146.8,130.8,130.8,130.8,130.8,164.8,164.8,146.8,146.8,130.8,130.8],
-    mDur:0.33, bDur:0.6, perc:0.55, pad:0.20, arp:0.16 },
-  // 3: 海の中
-  { bpm:72, vol:0.08, type:'sine', lead:'sine',
-    melody:[293.7,349.2,392,440,392,349.2,329.6,293.7,261.6,293.7,349.2,392,440,493.9,440,392],
-    bass:[146.8,146.8,174.6,174.6,146.8,146.8,130.8,130.8,130.8,130.8,174.6,174.6,146.8,146.8,130.8,130.8],
-    mDur:0.62, bDur:1.1, perc:0.15, pad:0.30, arp:0.18 },
-  // 4: 宇宙
-  { bpm:64, vol:0.075, type:'sine', lead:'sine',
-    melody:[220,246.9,261.6,220,196,220,233.1,246.9,261.6,233.1,220,196,174.6,196,220,246.9],
-    bass:[55,55,65.4,65.4,55,55,49,49,55,55,65.4,65.4,55,55,49,49],
-    mDur:0.75, bDur:1.4, perc:0.0, pad:0.34, arp:0.20 },
-];
+function getBgmAudio(level) {
+  if (!bgmCache[level]) {
+    const a = new Audio('bgm' + level + '.mp3');
+    a.loop = true; a.preload = 'auto'; a.volume = BGM_VOL;
+    bgmCache[level] = a;
+  }
+  return bgmCache[level];
+}
 
 function stopBGM() {
-  if (bgmLoopTimer) { clearTimeout(bgmLoopTimer); bgmLoopTimer = null; }
-  if (bgmNodes) {
-    try { bgmNodes.masterGain.gain.setTargetAtTime(0, getAudioCtx().currentTime, 0.3); } catch(e) {}
-    bgmNodes = null;
-  }
+  if (bgmAudio) { try { bgmAudio.pause(); } catch (e) {} }
 }
 
 function startBGM(level = 0) {
-  stopBGM();
-  if (!soundEnabled) return;
+  level = Math.max(0, Math.min(level, 4));
   bgmLevel = level;
-  playBGMLoop(level);
+  if (!soundEnabled) return;
+  const a = getBgmAudio(level);
+  if (bgmAudio && bgmAudio !== a) { try { bgmAudio.pause(); } catch (e) {} }
+  bgmAudio = a;
+  a.volume = BGM_VOL;
+  const p = a.play();
+  if (p && p.catch) p.catch(() => {});
 }
 
-function playBGMLoop(level) {
-  if (!soundEnabled || bgmLevel !== level) return;
-  try {
-    const ctx = getAudioCtx();
-    const data = BGM_DATA[Math.min(level, BGM_DATA.length - 1)];
-    const beat = 60 / data.bpm;
-    const master = ctx.createGain();
-    master.gain.value = data.vol;
-    const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -18; comp.ratio.value = 4;
-    const delay = ctx.createDelay(1.0); delay.delayTime.value = beat * 0.75;
-    const fb = ctx.createGain(); fb.gain.value = 0.25;
-    const wet = ctx.createGain(); wet.gain.value = 0.22;
-    delay.connect(fb); fb.connect(delay); delay.connect(wet);
-    master.connect(comp); wet.connect(comp); comp.connect(ctx.destination);
-
-    const t0 = ctx.currentTime + 0.06;
-    const N = data.melody.length;
-    const total = N * beat;
-
-    const tone = (freq, start, dur, type, vol, send) => {
-      const osc = ctx.createOscillator(); const gg = ctx.createGain();
-      osc.type = type; osc.frequency.value = freq;
-      osc.connect(gg); gg.connect(master); if (send) gg.connect(delay);
-      gg.gain.setValueAtTime(0, start);
-      gg.gain.linearRampToValueAtTime(vol, start + 0.02);
-      gg.gain.exponentialRampToValueAtTime(0.001, start + dur);
-      osc.start(start); osc.stop(start + dur + 0.05);
-    };
-
-    // メロディ（軽いデチューンで厚み）
-    data.melody.forEach((f, i) => {
-      const st = t0 + i * beat;
-      tone(f, st, data.mDur, data.lead, 0.5, true);
-      tone(f * 1.005, st, data.mDur, data.lead, 0.16, false);
-    });
-
-    // ベース + パワーコードパッド + アルペジオ（不協を避ける構成）
-    let bt = t0;
-    data.bass.forEach((f) => {
-      tone(f, bt, data.bDur, 'sine', 0.42, false);
-      if (data.pad) {
-        tone(f, bt, beat * 2, 'triangle', data.pad * 0.6, false);
-        tone(f * 1.4983, bt, beat * 2, 'triangle', data.pad * 0.5, false);
-        tone(f * 2, bt, beat * 2, 'sine', data.pad * 0.4, true);
-      }
-      if (data.arp) {
-        const arpN = [f * 2, f * 2.9966, f * 4, f * 2.9966];
-        for (let k = 0; k < 4; k++) tone(arpN[k], bt + k * (beat / 2), beat * 0.4, 'square', data.arp * 0.5, true);
-      }
-      bt += beat * 2;
-    });
-
-    // パーカッション（キック＋ハイハット）
-    if (data.perc) {
-      for (let i = 0; i < N; i++) {
-        const st = t0 + i * beat;
-        const ko = ctx.createOscillator(); const kg = ctx.createGain();
-        ko.frequency.setValueAtTime(140, st); ko.frequency.exponentialRampToValueAtTime(45, st + 0.12);
-        kg.gain.setValueAtTime(data.perc * 0.9, st); kg.gain.exponentialRampToValueAtTime(0.001, st + 0.18);
-        ko.connect(kg); kg.connect(master); ko.start(st); ko.stop(st + 0.2);
-        const hh = ctx.createBufferSource();
-        const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate);
-        const chd = buf.getChannelData(0); for (let j = 0; j < chd.length; j++) chd[j] = Math.random() * 2 - 1;
-        hh.buffer = buf;
-        const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7000;
-        const hg = ctx.createGain(); hg.gain.setValueAtTime(data.perc * 0.25, st + beat / 2); hg.gain.exponentialRampToValueAtTime(0.001, st + beat / 2 + 0.04);
-        hh.connect(hp); hp.connect(hg); hg.connect(master); hh.start(st + beat / 2); hh.stop(st + beat / 2 + 0.06);
-      }
-    }
-
-    bgmNodes = { masterGain: master };
-    bgmLoopTimer = setTimeout(() => { if (soundEnabled && bgmLevel === level) playBGMLoop(level); }, total * 1000 - 50);
-  } catch (e) {}
-}
+// タップで再生がブロックされていたら復帰
+document.addEventListener('pointerdown', () => {
+  if (soundEnabled && bgmAudio && bgmAudio.paused) { bgmAudio.play().catch(() => {}); }
+}, { passive: true });
 
 // ===================== RANKING =====================
 function getRanking() {
