@@ -343,19 +343,23 @@ document.addEventListener('pointerdown', () => {
 }, { passive: true });
 
 // ===================== RANKING =====================
-function getRanking() {
-  try { return JSON.parse(localStorage.getItem('fruitdrop_ranking') || '[]'); } catch { return []; }
+const MODE_LABEL = { normal:'通常', flip:'反転', time:'タイムアタック', mission:'ミッション' };
+function rankKey(mode) { return 'fruitdrop_rank_' + (mode || gameMode || 'normal'); }
+function getRanking(mode) {
+  try { return JSON.parse(localStorage.getItem(rankKey(mode)) || '[]'); } catch { return []; }
 }
-function saveRanking(score) {
-  const list = getRanking();
+function saveRanking(score, mode) {
+  const list = getRanking(mode);
   list.push({ score, date: new Date().toLocaleDateString('ja-JP') });
   list.sort((a, b) => b.score - a.score);
-  localStorage.setItem('fruitdrop_ranking', JSON.stringify(list.slice(0, 10)));
+  localStorage.setItem(rankKey(mode), JSON.stringify(list.slice(0, 10)));
   return list[0].score === score && list.filter(r => r.score === score).length === 1;
 }
-function getBest() {
-  const r = getRanking(); return r.length ? r[0].score : 0;
+function getBest(mode) {
+  const r = getRanking(mode); return r.length ? r[0].score : 0;
 }
+// 旧スコアをリセット（全モード共通だった旧データを削除し、モード別に0から）
+try { localStorage.removeItem('fruitdrop_ranking'); } catch (e) {}
 
 // ===================== NEXT FRUIT PREVIEW =====================
 let nextFruitIndex = Math.floor(Math.random() * 5);
@@ -555,6 +559,7 @@ class GameScene extends Phaser.Scene {
       stroke:'#000', strokeThickness:4, align:'center'
     }).setOrigin(0.5, 0).setDepth(12);
     this.updateHud();
+    document.getElementById('best-display').textContent = getBest();
 
     // 警告テキスト
     this.warningText = this.add.text(GAME_W / 2, GAME_H / 2, '', {
@@ -1816,6 +1821,8 @@ document.getElementById('restart-btn').addEventListener('click', () => {
 
 document.getElementById('btn-ranking').addEventListener('click', () => {
   const list = getRanking();
+  const h3 = document.querySelector('#ranking-panel h3');
+  if (h3) h3.textContent = '🏆 ' + (MODE_LABEL[gameMode] || '') + ' TOP10';
   const el = document.getElementById('ranking-list');
   if (list.length === 0) {
     el.innerHTML = '<div style="color:#888;text-align:center;padding:16px">まだ記録がありません</div>';
