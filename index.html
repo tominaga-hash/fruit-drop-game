@@ -547,6 +547,7 @@ class GameScene extends Phaser.Scene {
     this.warningShown = false;
     this.lastCountNum = -1; // カウントダウン管理
     this.flipGracePeriod = 0;
+    this.quakeGrace = 0;
     this.flipEnabled = (gameMode === 'flip');
 
     // ライフ表示
@@ -1389,6 +1390,7 @@ class GameScene extends Phaser.Scene {
 
     // 反転猶予タイマー
     if (this.flipGracePeriod > 0) this.flipGracePeriod -= delta;
+    if (this.quakeGrace > 0) this.quakeGrace -= delta;
 
     // タイムアタック：カウントダウン
     if (this.modeKind === 'time') {
@@ -1400,7 +1402,7 @@ class GameScene extends Phaser.Scene {
     // 重力反転タイマー（反転モードのみ）
     if (!this.flipEnabled) {
       // 通常モード：ゲームオーバー判定のみ（下方向固定）
-      if (!dropCooldown) {
+      if (!dropCooldown && this.quakeGrace <= 0) {
         for (const fruit of this.fruits) {
           const vel = fruit.body.velocity;
           const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
@@ -1559,7 +1561,7 @@ class GameScene extends Phaser.Scene {
     }
 
     // ゲームオーバー判定（重力方向に応じて危険ラインを変える）
-    if (!dropCooldown && !(this.flipGracePeriod > 0)) {
+    if (!dropCooldown && !(this.flipGracePeriod > 0) && this.quakeGrace <= 0) {
       for (const fruit of this.fruits) {
         const vel = fruit.body.velocity;
         const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
@@ -1653,12 +1655,13 @@ class GameScene extends Phaser.Scene {
     if (gameOver) return;
     const MB = Phaser.Physics.Matter.Matter.Body;
     const horizontal = Math.random() < 0.5;
-    this.cameras.main.shake(500, horizontal ? 0.022 : 0.016);
+    this.quakeGrace = 2200;
+    this.cameras.main.shake(650, horizontal ? 0.03 : 0.022);
     this.fruits.forEach(f => {
       let vx, vy;
-      if (horizontal) { vx = (Math.random() * 2 - 1) * 9; vy = -Math.random() * 3; }
-      else { vx = (Math.random() * 2 - 1) * 3; vy = -(4 + Math.random() * 6); }
-      try { MB.setVelocity(f.body, { x: vx, y: vy }); } catch (e) {}
+      if (horizontal) { vx = (Math.random() * 2 - 1) * 13; vy = -(1 + Math.random() * 5); }
+      else { vx = (Math.random() * 2 - 1) * 5; vy = -(6 + Math.random() * 9); }
+      try { MB.setVelocity(f.body, { x: vx, y: vy }); MB.setAngularVelocity(f.body, (Math.random() * 2 - 1) * 0.3); } catch (e) {}
     });
     if (soundEnabled) {
       try {
