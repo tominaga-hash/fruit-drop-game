@@ -210,15 +210,17 @@
       <div id="next-label" style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:1px">LIFE</div>
       <div id="life-display" style="font-size:20px;letter-spacing:2px">❤️❤️❤️</div>
     </div>
-    <div style="text-align:right">
-      <div id="best-label">BEST</div>
-      <div id="best-display">0</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="text-align:right">
+        <div id="best-label">BEST</div>
+        <div id="best-display">0</div>
+      </div>
+      <button id="btn-quake" disabled title="地震を起こす（1000点ごとにチャージ）" style="padding:8px 11px;border-radius:12px;border:1px solid rgba(255,190,90,0.55);background:rgba(255,170,60,0.15);color:#ffae42;font-size:14px;font-weight:700;cursor:pointer;opacity:0.45;white-space:nowrap;line-height:1">🌐 0</button>
     </div>
   </div>
   <div id="phaser-game"></div>
   <div id="bottom-bar">
     <button class="btn" id="btn-ranking">🏆 ランキング</button>
-    <button class="btn" id="btn-quake" disabled style="opacity:0.45">🌐 地震 0</button>
     <button class="btn" id="btn-sound">🔊 音</button>
     <button class="btn" id="btn-restart">🔄 リスタート</button>
   </div>
@@ -1676,32 +1678,36 @@ class GameScene extends Phaser.Scene {
   }
 
   buildShape() {
-    const W = GAME_W, H = GAME_H, col = 0x3a2a6e, al = 0.75;
+    const W = GAME_W, H = GAME_H, col = 0x3a2a6e, al = 0.75, floorY = H - FLOOR_T;
     const kinds = ['funnel', 'hourglass', 'pillar'];
     this.shapeKind = kinds[Math.floor(Math.random() * kinds.length)];
-    const addBar = (cx, cy, w, h, deg) => {
-      const rad = Phaser.Math.DegToRad(deg);
-      this.matter.add.rectangle(cx, cy, w, h, { isStatic: true, angle: rad, friction: 0.2, chamfer: { radius: 4 } });
-      this.add.rectangle(cx, cy, w, h, col, al).setRotation(rad).setDepth(1);
+    // 2点を結ぶ斜め壁（低摩擦でフルーツが必ず滑り落ちる）
+    const barAB = (x1, y1, x2, y2, th) => {
+      const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      const ang = Math.atan2(y2 - y1, x2 - x1);
+      this.matter.add.rectangle(cx, cy, len, th, { isStatic: true, angle: ang, friction: 0.04, chamfer: { radius: 4 } });
+      this.add.rectangle(cx, cy, len, th, col, al).setRotation(ang).setDepth(1);
     };
     const addPeg = (cx, cy, r) => {
-      this.matter.add.circle(cx, cy, r, { isStatic: true, friction: 0.1, restitution: 0.3 });
+      this.matter.add.circle(cx, cy, r, { isStatic: true, friction: 0.02, restitution: 0.4 });
       this.add.circle(cx, cy, r, col, al).setDepth(1);
     };
     if (this.shapeKind === 'funnel') {
-      const len = H * 0.46;
-      addBar(W * 0.30, H * 0.52, len, 16, 58);
-      addBar(W * 0.70, H * 0.52, len, 16, -58);
+      // 両壁から中央へ下る漏斗。中央下は開けて床へ（詰まり無し）
+      barAB(WALL_T, H * 0.34, W * 0.46, H * 0.74, 16);
+      barAB(W - WALL_T, H * 0.34, W * 0.54, H * 0.74, 16);
     } else if (this.shapeKind === 'hourglass') {
-      const len = H * 0.34;
-      addBar(W * 0.20, H * 0.33, len, 14, 52);
-      addBar(W * 0.80, H * 0.33, len, 14, -52);
-      addBar(W * 0.20, H * 0.72, len, 14, -52);
-      addBar(W * 0.80, H * 0.72, len, 14, 52);
+      // 上は中央へ集め、下は壁へ流す（袋小路を作らない）
+      barAB(WALL_T, H * 0.30, W * 0.5, H * 0.50, 14);
+      barAB(W - WALL_T, H * 0.30, W * 0.5, H * 0.50, 14);
+      barAB(W * 0.5, H * 0.57, WALL_T, H * 0.80, 14);
+      barAB(W * 0.5, H * 0.57, W - WALL_T, H * 0.80, 14);
     } else {
-      addBar(W * 0.5, H - FLOOR_T - H * 0.21, 24, H * 0.42, 0);
-      addPeg(W * 0.30, H * 0.5, 15);
-      addPeg(W * 0.70, H * 0.5, 15);
+      // 中央の柱（床から）＋左右の弾むピン
+      barAB(W * 0.5, floorY, W * 0.5, H * 0.42, 22);
+      addPeg(W * 0.28, H * 0.52, 14);
+      addPeg(W * 0.72, H * 0.52, 14);
     }
     this.updateHud();
   }
@@ -1849,7 +1855,7 @@ document.getElementById('btn-sound').addEventListener('click', () => {
 function updateQuakeBtn() {
   const b = document.getElementById('btn-quake');
   if (!b) return;
-  b.textContent = '🌐 地震 ' + quakeCharges;
+  b.textContent = '🌐 ' + quakeCharges;
   b.disabled = (quakeCharges <= 0);
   b.style.opacity = quakeCharges > 0 ? '1' : '0.45';
 }
