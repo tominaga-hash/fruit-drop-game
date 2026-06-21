@@ -289,41 +289,31 @@ let bgmLoopTimer = null;
 
 // 各ステージのBGMデータ
 const BGM_DATA = [
-  // 0: 砂漠・夕焼け — ゆったり民族風（ペンタトニック）
-  {
-    bpm: 80, vol: 0.07, type: 'triangle',
-    melody: [220,246.9,261.6,293.7,329.6,293.7,261.6,246.9,220,196,220,246.9,293.7,261.6,220,196],
-    bass:   [110,110,130.8,130.8,110,110,98,98,110,110,130.8,130.8,110,110,98,98],
-    mDur: 0.55, bDur: 0.9,
-  },
-  // 1: 夜の街 — ジャジー（マイナー）
-  {
-    bpm: 100, vol: 0.07, type: 'sine',
-    melody: [311.1,277.2,261.6,233.1,246.9,261.6,233.1,207.7,220,246.9,261.6,277.2,311.1,277.2,261.6,233.1],
-    bass:   [116.5,116.5,130.8,130.8,116.5,116.5,103.8,103.8,110,110,130.8,130.8,116.5,116.5,103.8,103.8],
-    mDur: 0.4, bDur: 0.7,
-  },
-  // 2: 森・自然 — 明るく軽快（メジャー）
-  {
-    bpm: 120, vol: 0.07, type: 'triangle',
-    melody: [261.6,329.6,392,440,392,329.6,293.7,261.6,293.7,349.2,392,440,493.9,440,392,329.6],
-    bass:   [130.8,130.8,164.8,164.8,146.8,146.8,130.8,130.8,130.8,130.8,164.8,164.8,146.8,146.8,130.8,130.8],
-    mDur: 0.33, bDur: 0.6,
-  },
-  // 3: 海の中 — 幻想的・ゆったり（ゆれるアルペジオ）
-  {
-    bpm: 70, vol: 0.065, type: 'sine',
-    melody: [293.7,349.2,392,440,392,349.2,329.6,293.7,261.6,293.7,349.2,392,440,493.9,440,392],
-    bass:   [146.8,146.8,174.6,174.6,146.8,146.8,130.8,130.8,130.8,130.8,174.6,174.6,146.8,146.8,130.8,130.8],
-    mDur: 0.62, bDur: 1.1,
-  },
-  // 4: 宇宙 — 神秘的アンビエント（広がり感）
-  {
-    bpm: 60, vol: 0.06, type: 'sine',
-    melody: [220,246.9,261.6,220,196,220,233.1,246.9,261.6,233.1,220,196,174.6,196,220,246.9],
-    bass:   [55,55,65.4,65.4,55,55,49,49,55,55,65.4,65.4,55,55,49,49],
-    mDur: 0.75, bDur: 1.4,
-  },
+  // 0: 砂漠・夕焼け
+  { bpm:82, vol:0.085, type:'triangle', lead:'triangle',
+    melody:[220,246.9,261.6,293.7,329.6,293.7,261.6,246.9,220,196,220,246.9,293.7,261.6,220,196],
+    bass:[110,110,130.8,130.8,110,110,98,98,110,110,130.8,130.8,110,110,98,98],
+    mDur:0.55, bDur:0.9, perc:0.35, pad:0.22, arp:0.10 },
+  // 1: 夜の街
+  { bpm:104, vol:0.085, type:'sine', lead:'square',
+    melody:[311.1,277.2,261.6,233.1,246.9,261.6,233.1,207.7,220,246.9,261.6,277.2,311.1,277.2,261.6,233.1],
+    bass:[116.5,116.5,130.8,130.8,116.5,116.5,103.8,103.8,110,110,130.8,130.8,116.5,116.5,103.8,103.8],
+    mDur:0.4, bDur:0.7, perc:0.6, pad:0.18, arp:0.14 },
+  // 2: 森・自然
+  { bpm:124, vol:0.085, type:'triangle', lead:'triangle',
+    melody:[261.6,329.6,392,440,392,329.6,293.7,261.6,293.7,349.2,392,440,493.9,440,392,329.6],
+    bass:[130.8,130.8,164.8,164.8,146.8,146.8,130.8,130.8,130.8,130.8,164.8,164.8,146.8,146.8,130.8,130.8],
+    mDur:0.33, bDur:0.6, perc:0.55, pad:0.20, arp:0.16 },
+  // 3: 海の中
+  { bpm:72, vol:0.08, type:'sine', lead:'sine',
+    melody:[293.7,349.2,392,440,392,349.2,329.6,293.7,261.6,293.7,349.2,392,440,493.9,440,392],
+    bass:[146.8,146.8,174.6,174.6,146.8,146.8,130.8,130.8,130.8,130.8,174.6,174.6,146.8,146.8,130.8,130.8],
+    mDur:0.62, bDur:1.1, perc:0.15, pad:0.30, arp:0.18 },
+  // 4: 宇宙
+  { bpm:64, vol:0.075, type:'sine', lead:'sine',
+    melody:[220,246.9,261.6,220,196,220,233.1,246.9,261.6,233.1,220,196,174.6,196,220,246.9],
+    bass:[55,55,65.4,65.4,55,55,49,49,55,55,65.4,65.4,55,55,49,49],
+    mDur:0.75, bDur:1.4, perc:0.0, pad:0.34, arp:0.20 },
 ];
 
 function stopBGM() {
@@ -347,63 +337,74 @@ function playBGMLoop(level) {
     const ctx = getAudioCtx();
     const data = BGM_DATA[Math.min(level, BGM_DATA.length - 1)];
     const beat = 60 / data.bpm;
-    const masterGain = ctx.createGain();
-    masterGain.gain.value = data.vol;
-    // リバーブ風（コンプレッサー）
+    const master = ctx.createGain();
+    master.gain.value = data.vol;
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -20;
-    comp.ratio.value = 4;
-    masterGain.connect(comp);
-    comp.connect(ctx.destination);
+    comp.threshold.value = -18; comp.ratio.value = 4;
+    const delay = ctx.createDelay(1.0); delay.delayTime.value = beat * 0.75;
+    const fb = ctx.createGain(); fb.gain.value = 0.25;
+    const wet = ctx.createGain(); wet.gain.value = 0.22;
+    delay.connect(fb); fb.connect(delay); delay.connect(wet);
+    master.connect(comp); wet.connect(comp); comp.connect(ctx.destination);
 
-    let t = ctx.currentTime + 0.05;
-    const totalDuration = data.melody.length * beat;
+    const t0 = ctx.currentTime + 0.06;
+    const N = data.melody.length;
+    const total = N * beat;
 
-    // メロディ
-    data.melody.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.connect(g); g.connect(masterGain);
-      osc.type = data.type;
-      osc.frequency.value = freq;
-      // 宇宙はビブラート
-      if (level === 4) {
-        const lfo = ctx.createOscillator();
-        const lfoG = ctx.createGain();
-        lfo.frequency.value = 4;
-        lfoG.gain.value = 3;
-        lfo.connect(lfoG); lfoG.connect(osc.frequency);
-        lfo.start(t); lfo.stop(t + data.mDur);
-      }
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.5, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t + data.mDur);
-      osc.start(t); osc.stop(t + data.mDur);
-      t += beat;
+    const tone = (freq, start, dur, type, vol, send) => {
+      const osc = ctx.createOscillator(); const gg = ctx.createGain();
+      osc.type = type; osc.frequency.value = freq;
+      osc.connect(gg); gg.connect(master); if (send) gg.connect(delay);
+      gg.gain.setValueAtTime(0, start);
+      gg.gain.linearRampToValueAtTime(vol, start + 0.02);
+      gg.gain.exponentialRampToValueAtTime(0.001, start + dur);
+      osc.start(start); osc.stop(start + dur + 0.05);
+    };
+
+    // メロディ（軽いデチューンで厚み）
+    data.melody.forEach((f, i) => {
+      const st = t0 + i * beat;
+      tone(f, st, data.mDur, data.lead, 0.5, true);
+      tone(f * 1.005, st, data.mDur, data.lead, 0.16, false);
     });
 
-    // ベース
-    let bt = ctx.currentTime + 0.05;
-    data.bass.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.connect(g); g.connect(masterGain);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      g.gain.setValueAtTime(0.3, bt);
-      g.gain.exponentialRampToValueAtTime(0.001, bt + data.bDur * 0.8);
-      osc.start(bt); osc.stop(bt + data.bDur);
+    // ベース + パワーコードパッド + アルペジオ（不協を避ける構成）
+    let bt = t0;
+    data.bass.forEach((f) => {
+      tone(f, bt, data.bDur, 'sine', 0.42, false);
+      if (data.pad) {
+        tone(f, bt, beat * 2, 'triangle', data.pad * 0.6, false);
+        tone(f * 1.4983, bt, beat * 2, 'triangle', data.pad * 0.5, false);
+        tone(f * 2, bt, beat * 2, 'sine', data.pad * 0.4, true);
+      }
+      if (data.arp) {
+        const arpN = [f * 2, f * 2.9966, f * 4, f * 2.9966];
+        for (let k = 0; k < 4; k++) tone(arpN[k], bt + k * (beat / 2), beat * 0.4, 'square', data.arp * 0.5, true);
+      }
       bt += beat * 2;
     });
 
-    bgmNodes = { masterGain };
+    // パーカッション（キック＋ハイハット）
+    if (data.perc) {
+      for (let i = 0; i < N; i++) {
+        const st = t0 + i * beat;
+        const ko = ctx.createOscillator(); const kg = ctx.createGain();
+        ko.frequency.setValueAtTime(140, st); ko.frequency.exponentialRampToValueAtTime(45, st + 0.12);
+        kg.gain.setValueAtTime(data.perc * 0.9, st); kg.gain.exponentialRampToValueAtTime(0.001, st + 0.18);
+        ko.connect(kg); kg.connect(master); ko.start(st); ko.stop(st + 0.2);
+        const hh = ctx.createBufferSource();
+        const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate);
+        const chd = buf.getChannelData(0); for (let j = 0; j < chd.length; j++) chd[j] = Math.random() * 2 - 1;
+        hh.buffer = buf;
+        const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7000;
+        const hg = ctx.createGain(); hg.gain.setValueAtTime(data.perc * 0.25, st + beat / 2); hg.gain.exponentialRampToValueAtTime(0.001, st + beat / 2 + 0.04);
+        hh.connect(hp); hp.connect(hg); hg.connect(master); hh.start(st + beat / 2); hh.stop(st + beat / 2 + 0.06);
+      }
+    }
 
-    // ループ：曲が終わったら再度呼び出す
-    bgmLoopTimer = setTimeout(() => {
-      if (soundEnabled && bgmLevel === level) playBGMLoop(level);
-    }, totalDuration * 1000 - 50);
-
-  } catch(e) {}
+    bgmNodes = { masterGain: master };
+    bgmLoopTimer = setTimeout(() => { if (soundEnabled && bgmLevel === level) playBGMLoop(level); }, total * 1000 - 50);
+  } catch (e) {}
 }
 
 // ===================== RANKING =====================
@@ -522,7 +523,10 @@ document.getElementById('best-display').textContent = getBest();
 class GameScene extends Phaser.Scene {
   constructor() { super({ key: 'GameScene' }); }
 
-  preload() {}
+  preload() {
+    ['bg0_desert.jpg','bg1_city.jpg','bg2_forest.jpg','bg3_ocean.jpg','bg4_space.jpg']
+      .forEach((f,i)=> this.load.image('bgphoto'+i, f));
+  }
 
   create() {
     this.score = 0;
@@ -845,167 +849,22 @@ class GameScene extends Phaser.Scene {
     const g = this.bgGraphics;
     const W = GAME_W, H = GAME_H;
 
-    if (level === 0) {
-      // 砂漠・夕焼け
-      // 空グラデーション
-      const skyColors = [0xff4500, 0xff6b35, 0xff9a3c, 0xffcd3c, 0xff4757];
-      for (let i = 0; i < 8; i++) {
-        const t = i / 8;
-        g.fillStyle(skyColors[Math.floor(t * (skyColors.length-1))], 0.9);
-        g.fillRect(0, H * t / 2, W, H / 8 + 2);
+    // 写真背景（ステージ別・最背面）
+    const photoKey = 'bgphoto' + level;
+    if (this.textures.exists(photoKey)) {
+      if (!this.bgPhoto) {
+        this.bgPhoto = this.add.image(W/2, H/2, photoKey).setDepth(-3);
+      } else {
+        this.bgPhoto.setTexture(photoKey).setVisible(true);
       }
-      // 暗オーバーレイ
-      g.fillStyle(0x000000, 0.35); g.fillRect(0, 0, W, H);
-      // 砂丘
-      g.fillStyle(0xc8a96e, 0.5);
-      g.fillEllipse(W*0.2, H*0.92, W*1.2, H*0.35);
-      g.fillStyle(0xb8956a, 0.4);
-      g.fillEllipse(W*0.75, H*0.95, W*1.0, H*0.28);
-      // 太陽
-      g.fillStyle(0xffcd3c, 0.7);
-      g.fillCircle(W*0.75, H*0.18, 28);
-      g.fillStyle(0xffcd3c, 0.2);
-      g.fillCircle(W*0.75, H*0.18, 42);
-      // 砂粒
-      for (let i = 0; i < 30; i++) {
-        g.fillStyle(0xd4a96e, 0.25);
-        g.fillCircle(Math.random()*W, H*0.6 + Math.random()*H*0.4, 1+Math.random()*2);
-      }
-
-    } else if (level === 1) {
-      // 夜の街
-      // 夜空グラデーション
-      for (let i = 0; i < 8; i++) {
-        const dark = Math.floor(15 + i * 8);
-        g.fillStyle(Phaser.Display.Color.GetColor(dark, dark*0.4, dark*1.5), 0.9);
-        g.fillRect(0, H * i / 8, W, H / 8 + 2);
-      }
-      g.fillStyle(0x000000, 0.3); g.fillRect(0, 0, W, H);
-      // 月
-      g.fillStyle(0xfffde7, 0.7); g.fillCircle(W*0.2, H*0.12, 18);
-      g.fillStyle(0x0d0221, 0.7); g.fillCircle(W*0.23, H*0.11, 15);
-      // ビル群
-      const buildings = [
-        {x:0,   w:45, h:180, win:[[8,20],[8,50],[8,80],[8,110],[25,20],[25,50],[25,80]]},
-        {x:40,  w:35, h:220, win:[[5,15],[5,45],[5,75],[5,105],[5,135],[18,15],[18,45],[18,75],[18,105]]},
-        {x:70,  w:50, h:150, win:[[8,20],[8,50],[8,80],[25,20],[25,50],[25,80],[38,20]]},
-        {x:115, w:40, h:200, win:[[6,15],[6,45],[6,75],[6,105],[20,15],[20,45],[20,75]]},
-        {x:150, w:55, h:170, win:[[8,20],[8,50],[8,80],[25,20],[25,50],[40,20],[40,50]]},
-        {x:200, w:38, h:240, win:[[5,15],[5,45],[5,75],[5,105],[5,135],[18,15],[18,45],[18,75]]},
-        {x:232, w:45, h:190, win:[[6,20],[6,50],[6,80],[6,110],[22,20],[22,50],[22,80],[34,20]]},
-        {x:272, w:60, h:160, win:[[8,20],[8,50],[8,80],[25,20],[25,50],[25,80],[42,20],[42,50]]},
-        {x:328, w:40, h:210, win:[[5,15],[5,45],[5,75],[5,105],[5,135],[20,15],[20,45],[20,75]]},
-        {x:362, w:50, h:180, win:[[6,20],[6,50],[6,80],[6,110],[22,20],[22,50],[22,80]]},
-      ];
-      buildings.forEach(b => {
-        g.fillStyle(0x1a1a2e, 0.85);
-        g.fillRect(b.x, H - b.h, b.w, b.h);
-        b.win.forEach(([wx, wy]) => {
-          if (Math.random() > 0.35) {
-            g.fillStyle(Math.random() > 0.5 ? 0xffeb3b : 0x80cbc4, 0.7);
-            g.fillRect(b.x + wx, H - b.h + wy, 6, 8);
-          }
-        });
-      });
-      // 星
-      for (let i = 0; i < 40; i++) {
-        g.fillStyle(0xffffff, 0.3 + Math.random()*0.4);
-        g.fillCircle(Math.random()*W, Math.random()*H*0.5, 0.8+Math.random()*1.2);
-      }
-
-    } else if (level === 2) {
-      // 森・自然
-      for (let i = 0; i < 8; i++) {
-        const t = i / 8;
-        const r = Math.floor(10 + t*30), gv = Math.floor(40 + t*80), b2 = Math.floor(20 + t*40);
-        g.fillStyle(Phaser.Display.Color.GetColor(r, gv, b2), 0.9);
-        g.fillRect(0, H*t/8, W, H/8+2);
-      }
-      g.fillStyle(0x000000, 0.38); g.fillRect(0, 0, W, H);
-      // 光の筋（木漏れ日）
-      for (let i = 0; i < 6; i++) {
-        const lx = 30 + i * 60 + Math.random()*20;
-        g.fillStyle(0xffeb3b, 0.04 + Math.random()*0.04);
-        g.fillTriangle(lx, 0, lx-15, H, lx+15, H);
-      }
-      // 遠景の木
-      const drawTree = (tx, ty, size, dark) => {
-        g.fillStyle(dark ? 0x1b4332 : 0x2d6a4f, 0.6);
-        g.fillTriangle(tx, ty, tx-size*0.6, ty+size, tx+size*0.6, ty+size);
-        g.fillTriangle(tx, ty+size*0.4, tx-size*0.45, ty+size*1.3, tx+size*0.45, ty+size*1.3);
-        g.fillStyle(dark ? 0x1a3a2a : 0x264d3b, 0.6);
-        g.fillRect(tx-size*0.1, ty+size*1.3, size*0.2, size*0.5);
-      };
-      [[W*0.05,H*0.35,55,true],[W*0.18,H*0.25,70,false],[W*0.35,H*0.30,60,true],
-       [W*0.55,H*0.22,80,false],[W*0.70,H*0.30,65,true],[W*0.85,H*0.28,75,false],
-       [W*0.95,H*0.35,50,true]].forEach(([tx,ty,sz,dk]) => drawTree(tx,ty,sz,dk));
-      // 草地
-      g.fillStyle(0x1b4332, 0.5); g.fillEllipse(W/2, H*0.98, W*1.2, H*0.15);
-      // 蛍
-      for (let i = 0; i < 12; i++) {
-        g.fillStyle(0xccff00, 0.25+Math.random()*0.2);
-        g.fillCircle(WALL_T+10+Math.random()*(W-WALL_T*2-20), H*0.3+Math.random()*H*0.5, 2+Math.random()*2);
-      }
-
-    } else if (level === 3) {
-      // 海の中
-      for (let i = 0; i < 10; i++) {
-        const t = i / 10;
-        const r = Math.floor(0 + t*5), gv = Math.floor(60 + t*40), b2 = Math.floor(120 + t*80);
-        g.fillStyle(Phaser.Display.Color.GetColor(r, gv, b2), 0.9);
-        g.fillRect(0, H*t/10, W, H/10+2);
-      }
-      g.fillStyle(0x000000, 0.42); g.fillRect(0, 0, W, H);
-      // 光の揺らぎ
-      for (let i = 0; i < 8; i++) {
-        const lx = 20 + i * 50;
-        g.fillStyle(0x00bcd4, 0.04);
-        g.fillTriangle(lx, 0, lx-20, H*0.6, lx+20, H*0.6);
-      }
-      // 珊瑚
-      const drawCoral = (cx, cy, col) => {
-        g.fillStyle(col, 0.5);
-        g.fillRect(cx, cy, 6, 40);
-        g.fillRect(cx-8, cy+10, 5, 25);
-        g.fillRect(cx+9, cy+15, 5, 20);
-        g.fillCircle(cx+3, cy, 7);
-        g.fillCircle(cx-5, cy+10, 5);
-        g.fillCircle(cx+12, cy+15, 5);
-      };
-      [[40,H-60,0xff4757],[80,H-80,0xff6348],[130,H-55,0xff7f50],[200,H-70,0xff4757],
-       [260,H-65,0xffa502],[310,H-75,0xff6b81],[360,H-60,0xff4757]].forEach(([cx,cy,c])=>drawCoral(cx,cy,c));
-      // 泡
-      for (let i = 0; i < 20; i++) {
-        g.lineStyle(1, 0x80deea, 0.2+Math.random()*0.2);
-        g.strokeCircle(WALL_T+10+Math.random()*(W-WALL_T*2-20), H*0.1+Math.random()*H*0.8, 3+Math.random()*8);
-      }
-      // 砂地
-      g.fillStyle(0xc8a96e, 0.3); g.fillEllipse(W/2, H, W*1.3, H*0.12);
-
-    } else {
-      // 宇宙・星空
-      g.fillStyle(0x000000, 1); g.fillRect(0, 0, W, H);
-      // 星雲
-      g.fillStyle(0x3d0066, 0.15); g.fillEllipse(W*0.3, H*0.3, W*0.7, H*0.4);
-      g.fillStyle(0x000066, 0.12); g.fillEllipse(W*0.7, H*0.6, W*0.6, H*0.35);
-      g.fillStyle(0x003333, 0.1);  g.fillEllipse(W*0.5, H*0.5, W*0.5, H*0.5);
-      // 星（大小）
-      for (let i = 0; i < 80; i++) {
-        const sz = Math.random();
-        g.fillStyle(0xffffff, 0.3 + Math.random()*0.5);
-        g.fillCircle(Math.random()*W, Math.random()*H, sz < 0.7 ? 0.8 : (sz < 0.9 ? 1.5 : 2.5));
-      }
-      // 惑星
-      g.fillStyle(0x4169e1, 0.6); g.fillCircle(W*0.8, H*0.15, 16);
-      g.fillStyle(0x1a237e, 0.4); g.fillCircle(W*0.8, H*0.15, 16);
-      g.lineStyle(2, 0x90caf9, 0.3);
-      g.strokeEllipse(W*0.8, H*0.15, 50, 12);
-      // 流れ星
-      g.lineStyle(1, 0xffffff, 0.4);
-      g.lineBetween(W*0.1, H*0.08, W*0.22, H*0.12);
-      g.lineStyle(1, 0xffffff, 0.2);
-      g.lineBetween(W*0.6, H*0.2, W*0.68, H*0.23);
+      const src = this.textures.get(photoKey).getSourceImage();
+      const sc = Math.max(W / src.width, H / src.height);
+      this.bgPhoto.setScale(sc).setPosition(W/2, H/2);
     }
+    // 視認性確保の暗オーバーレイ（上下を濃く）
+    g.fillStyle(0x000000, 0.40); g.fillRect(0, 0, W, H);
+    g.fillStyle(0x000000, 0.30); g.fillRect(0, 0, W, 96);
+    g.fillStyle(0x000000, 0.30); g.fillRect(0, H - 96, W, 96);
 
     // ===== 動的アニメ =====
     if (level === 0) {
