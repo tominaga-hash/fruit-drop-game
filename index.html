@@ -1697,14 +1697,14 @@ class GameScene extends Phaser.Scene {
       this.add.circle(cx, cy, r, col, al).setDepth(1);
     };
     if (this.shapeKind === 'funnel') {
-      // 中央付近に短い斜め線（約3cm）。壁際は大きく開けてフルーツが落ちる
-      barAB(W * 0.5 - 95, H * 0.56, W * 0.5 - 35, H * 0.70, 16);
-      barAB(W * 0.5 + 95, H * 0.56, W * 0.5 + 35, H * 0.70, 16);
+      // 中央の斜め線。中心を広めにしてフルーツが落ちる。壁際も開放
+      barAB(W * 0.5 - 135, H * 0.55, W * 0.5 - 78, H * 0.69, 16);
+      barAB(W * 0.5 + 135, H * 0.55, W * 0.5 + 78, H * 0.69, 16);
     } else {
-      // 中央の短い柱（約5cm）＋左右の弾むピン
-      barAB(W * 0.5, floorY, W * 0.5, floorY - 170, 22);
-      addPeg(W * 0.28, H * 0.55, 14);
-      addPeg(W * 0.72, H * 0.55, 14);
+      // 中央の浮いた棒（下にスイカが通る隙間）＋左右の弾むピン
+      barAB(W * 0.5, floorY - 200, W * 0.5, floorY - 360, 22);
+      addPeg(W * 0.28, H * 0.5, 14);
+      addPeg(W * 0.72, H * 0.5, 14);
     }
     this.updateHud();
   }
