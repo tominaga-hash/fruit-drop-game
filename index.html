@@ -835,12 +835,10 @@ class GameScene extends Phaser.Scene {
     const files = ['bg0_desert.jpg','bg1_city.jpg','bg2_forest.jpg','bg3_ocean.jpg','bg4_space.jpg'];
     files.forEach((f, i) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
       img.onload = () => {
         const key = 'bgphoto' + i;
         try {
-          if (this.textures.exists(key)) this.textures.removeKey(key);
-          this.textures.addImage(key, img);
+          if (!this.textures.exists(key)) this.textures.addImage(key, img);
           if (this.currentBgLevel === i) this.applyBgPhoto(i);
         } catch (e) {}
       };
@@ -851,14 +849,11 @@ class GameScene extends Phaser.Scene {
   applyBgPhoto(level) {
     const key = 'bgphoto' + level;
     if (!this.textures.exists(key)) return;
-    if (!this.bgPhoto) {
-      this.bgPhoto = this.add.image(GAME_W/2, GAME_H/2, key).setDepth(-3);
-    } else {
-      this.bgPhoto.setTexture(key).setVisible(true);
-    }
+    if (this.bgPhoto) { this.bgPhoto.destroy(); this.bgPhoto = null; }
+    this.bgPhoto = this.add.image(GAME_W/2, GAME_H/2, key).setDepth(-3);
     const src = this.textures.get(key).getSourceImage();
     const sc = Math.max(GAME_W / src.width, GAME_H / src.height);
-    this.bgPhoto.setScale(sc).setPosition(GAME_W/2, GAME_H/2);
+    this.bgPhoto.setScale(sc);
   }
 
   drawBackground(score, animated = false) {
