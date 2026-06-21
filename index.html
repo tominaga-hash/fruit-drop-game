@@ -185,6 +185,10 @@
       🎯 ミッション
       <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">お題を順番にクリア</div>
     </button>
+    <button id="btn-mode-shape" style="padding:16px;border-radius:20px;border:2px solid rgba(190,150,255,0.5);background:linear-gradient(135deg,rgba(190,150,255,0.18),rgba(190,150,255,0.05));color:#c9a6ff;font-size:18px;font-weight:700;cursor:pointer;">
+      🧩 変形ステージ
+      <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">形がいろいろ変わる（横長）</div>
+    </button>
   </div>
   <div style="font-size:11px;color:#555;margin-top:8px">指を離した場所にフルーツが落ちる</div>
 </div>
@@ -214,6 +218,7 @@
   <div id="phaser-game"></div>
   <div id="bottom-bar">
     <button class="btn" id="btn-ranking">🏆 ランキング</button>
+    <button class="btn" id="btn-quake" disabled style="opacity:0.45">🌐 地震 0</button>
     <button class="btn" id="btn-sound">🔊 音</button>
     <button class="btn" id="btn-restart">🔄 リスタート</button>
   </div>
@@ -343,7 +348,7 @@ document.addEventListener('pointerdown', () => {
 }, { passive: true });
 
 // ===================== RANKING =====================
-const MODE_LABEL = { normal:'通常', flip:'反転', time:'タイムアタック', mission:'ミッション' };
+const MODE_LABEL = { normal:'通常', flip:'反転', time:'タイムアタック', mission:'ミッション', shape:'変形' };
 function rankKey(mode) { return 'fruitdrop_rank_' + (mode || gameMode || 'normal'); }
 function getRanking(mode) {
   try { return JSON.parse(localStorage.getItem(rankKey(mode)) || '[]'); } catch { return []; }
@@ -398,6 +403,7 @@ drawNextFruit(nextFruitIndex);
 
 // ===================== PHASER GAME =====================
 let gameScore = 0;
+let quakeCharges = 0;
 let gameOver = false;
 let canDrop = true;
 let dropCooldown = false;
@@ -410,7 +416,8 @@ function updateLifeDisplay() {
   document.getElementById('life-display').textContent = display[Math.max(0, playerLife)];
 }
 
-const GAME_W = Math.min(400, window.innerWidth);
+const BASE_W = Math.min(400, window.innerWidth);
+let GAME_W = BASE_W;
 const GAME_H = Math.min(560, window.innerHeight - 120);
 const WALL_T = 14;
 const FLOOR_T = 14;
@@ -475,6 +482,8 @@ class GameScene extends Phaser.Scene {
     gameScore = 0;
     playerLife = 3;
     updateLifeDisplay();
+    quakeCharges = 0;
+    updateQuakeBtn();
 
     // Matter physics
     this.matter.world.setBounds(WALL_T, 0, GAME_W - WALL_T * 2, GAME_H - FLOOR_T, 64, true, true, true, true);
@@ -560,6 +569,7 @@ class GameScene extends Phaser.Scene {
     }).setOrigin(0.5, 0).setDepth(12);
     this.updateHud();
     document.getElementById('best-display').textContent = getBest();
+    if (this.modeKind === 'shape') this.buildShape();
 
     // 警告テキスト
     this.warningText = this.add.text(GAME_W / 2, GAME_H / 2, '', {
@@ -763,6 +773,7 @@ class GameScene extends Phaser.Scene {
 
     // 背景・BGM切り替えチェック
     const newLevel = Math.floor(gameScore / 1000);
+    if (newLevel > prevLevel) { quakeCharges += (newLevel - prevLevel); updateQuakeBtn(); }
     if (newLevel !== prevLevel) {
       this.drawBackground(gameScore, true);
       startBGM(this.currentBgLevel);
@@ -1572,6 +1583,10 @@ class GameScene extends Phaser.Scene {
       const mi = this.missions[this.missionIndex];
       this.hud.setText(mi ? ('\uD83C\uDFAF ' + mi.label) : '');
       this.hud.setColor('#9be89b');
+    } else if (this.modeKind === 'shape') {
+      const sl = { funnel:'漏斗', hourglass:'砂時計', pillar:'障害物' };
+      this.hud.setText('\uD83E\uDDE9 ' + (sl[this.shapeKind] || '変形ステージ'));
+      this.hud.setColor('#c9a6ff');
     } else {
       this.hud.setText('');
     }
@@ -1630,6 +1645,65 @@ class GameScene extends Phaser.Scene {
       document.getElementById('overlay').classList.remove('hidden');
       document.getElementById('best-display').textContent = getBest();
     });
+  }
+
+  doEarthquake() {
+    if (gameOver) return;
+    const MB = Phaser.Physics.Matter.Matter.Body;
+    const horizontal = Math.random() < 0.5;
+    this.cameras.main.shake(500, horizontal ? 0.022 : 0.016);
+    this.fruits.forEach(f => {
+      let vx, vy;
+      if (horizontal) { vx = (Math.random() * 2 - 1) * 9; vy = -Math.random() * 3; }
+      else { vx = (Math.random() * 2 - 1) * 3; vy = -(4 + Math.random() * 6); }
+      try { MB.setVelocity(f.body, { x: vx, y: vy }); } catch (e) {}
+    });
+    if (soundEnabled) {
+      try {
+        const ctx = getAudioCtx();
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(90, ctx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(28, ctx.currentTime + 0.5);
+        g.gain.setValueAtTime(0.3, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.6);
+      } catch (e) {}
+    }
+    const label = horizontal ? '横揺れ！' : '縦揺れ！';
+    const t = this.add.text(GAME_W / 2, 70, label, { fontSize:'24px', fontStyle:'bold', color:'#ffcc66', stroke:'#000', strokeThickness:4 }).setOrigin(0.5).setDepth(20).setAlpha(0);
+    this.tweens.add({ targets:t, alpha:1, duration:200, hold:600, yoyo:true, onComplete:() => t.destroy() });
+  }
+
+  buildShape() {
+    const W = GAME_W, H = GAME_H, col = 0x3a2a6e, al = 0.75;
+    const kinds = ['funnel', 'hourglass', 'pillar'];
+    this.shapeKind = kinds[Math.floor(Math.random() * kinds.length)];
+    const addBar = (cx, cy, w, h, deg) => {
+      const rad = Phaser.Math.DegToRad(deg);
+      this.matter.add.rectangle(cx, cy, w, h, { isStatic: true, angle: rad, friction: 0.2, chamfer: { radius: 4 } });
+      this.add.rectangle(cx, cy, w, h, col, al).setRotation(rad).setDepth(1);
+    };
+    const addPeg = (cx, cy, r) => {
+      this.matter.add.circle(cx, cy, r, { isStatic: true, friction: 0.1, restitution: 0.3 });
+      this.add.circle(cx, cy, r, col, al).setDepth(1);
+    };
+    if (this.shapeKind === 'funnel') {
+      const len = H * 0.46;
+      addBar(W * 0.30, H * 0.52, len, 16, 58);
+      addBar(W * 0.70, H * 0.52, len, 16, -58);
+    } else if (this.shapeKind === 'hourglass') {
+      const len = H * 0.34;
+      addBar(W * 0.20, H * 0.33, len, 14, 52);
+      addBar(W * 0.80, H * 0.33, len, 14, -52);
+      addBar(W * 0.20, H * 0.72, len, 14, -52);
+      addBar(W * 0.80, H * 0.72, len, 14, 52);
+    } else {
+      addBar(W * 0.5, H - FLOOR_T - H * 0.21, 24, H * 0.42, 0);
+      addPeg(W * 0.30, H * 0.5, 15);
+      addPeg(W * 0.70, H * 0.5, 15);
+    }
+    this.updateHud();
   }
 
   triggerGameOver(reason) {
@@ -1772,9 +1846,25 @@ document.getElementById('btn-sound').addEventListener('click', () => {
   }
 });
 
+function updateQuakeBtn() {
+  const b = document.getElementById('btn-quake');
+  if (!b) return;
+  b.textContent = '🌐 地震 ' + quakeCharges;
+  b.disabled = (quakeCharges <= 0);
+  b.style.opacity = quakeCharges > 0 ? '1' : '0.45';
+}
+document.getElementById('btn-quake').addEventListener('click', () => {
+  if (quakeCharges <= 0 || gameOver) return;
+  const sc = game.scene.getScene('GameScene');
+  if (!sc || !game.scene.isActive('GameScene')) return;
+  quakeCharges--; updateQuakeBtn();
+  sc.doEarthquake();
+});
+
 // ===================== TITLE SCREEN =====================
 document.getElementById('btn-mode-normal').addEventListener('click', () => {
   gameMode = 'normal';
+  applyFieldWidth('normal');
   try { startBGM(0); } catch (e) {}
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
@@ -1784,6 +1874,7 @@ document.getElementById('btn-mode-normal').addEventListener('click', () => {
 });
 document.getElementById('btn-mode-flip').addEventListener('click', () => {
   gameMode = 'flip';
+  applyFieldWidth('flip');
   try { startBGM(0); } catch (e) {}
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
@@ -1791,8 +1882,15 @@ document.getElementById('btn-mode-flip').addEventListener('click', () => {
   drawNextFruit(nextFruitIndex);
   game.scene.start('GameScene');
 });
+function applyFieldWidth(mode) {
+  GAME_W = (mode === 'shape') ? Math.min(Math.round(BASE_W * 1.5), window.innerWidth) : BASE_W;
+  try { game.scale.resize(GAME_W, GAME_H); } catch (e) {}
+  const wpx = GAME_W + 'px';
+  ['ui-bar', 'bottom-bar'].forEach(id => { const el = document.getElementById(id); if (el) el.style.maxWidth = wpx; });
+}
 function _startMode(mode) {
   gameMode = mode;
+  applyFieldWidth(mode);
   try { startBGM(0); } catch (e) {}
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
@@ -1802,6 +1900,7 @@ function _startMode(mode) {
 }
 document.getElementById('btn-mode-time').addEventListener('click', () => _startMode('time'));
 document.getElementById('btn-mode-mission').addEventListener('click', () => _startMode('mission'));
+document.getElementById('btn-mode-shape').addEventListener('click', () => _startMode('shape'));
 
 // リスタート時にタイトルに戻る
 document.getElementById('btn-restart').removeEventListener('click', restartGame);
