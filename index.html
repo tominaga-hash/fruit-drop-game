@@ -524,6 +524,7 @@ class GameScene extends Phaser.Scene {
   constructor() { super({ key: 'GameScene' }); }
 
   preload() {
+    this.load.crossOrigin = 'anonymous';
     ['bg0_desert.jpg','bg1_city.jpg','bg2_forest.jpg','bg3_ocean.jpg','bg4_space.jpg']
       .forEach((f,i)=> this.load.image('bgphoto'+i, f));
   }
