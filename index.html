@@ -1690,11 +1690,11 @@ class GameScene extends Phaser.Scene {
       const len = Math.hypot(x2 - x1, y2 - y1);
       const ang = Math.atan2(y2 - y1, x2 - x1);
       this.matter.add.rectangle(cx, cy, len, th, { isStatic: true, angle: ang, friction: 0.04, chamfer: { radius: 4 } });
-      this.add.rectangle(cx, cy, len, th, col, al).setRotation(ang).setDepth(1);
+      this.add.rectangle(cx, cy, len, th, 0x6a3fd6, 0.92).setRotation(ang).setStrokeStyle(4, 0x66f0ff, 1).setDepth(1);
     };
     const addPeg = (cx, cy, r) => {
       this.matter.add.circle(cx, cy, r, { isStatic: true, friction: 0.02, restitution: 0.4 });
-      this.add.circle(cx, cy, r, col, al).setDepth(1);
+      this.add.circle(cx, cy, r, 0x6a3fd6, 0.92).setStrokeStyle(4, 0x66f0ff, 1).setDepth(1);
     };
     if (this.shapeKind === 'funnel') {
       // 斜め線は片方だけ・少し上に配置（フルーツは広く落ちる）
