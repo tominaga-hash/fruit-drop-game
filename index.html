@@ -1679,7 +1679,7 @@ class GameScene extends Phaser.Scene {
 
   buildShape() {
     const W = GAME_W, H = GAME_H, col = 0x3a2a6e, al = 0.75, floorY = H - FLOOR_T;
-    const kinds = ['funnel', 'hourglass', 'pillar'];
+    const kinds = ['funnel', 'pillar'];
     this.shapeKind = kinds[Math.floor(Math.random() * kinds.length)];
     // 2点を結ぶ斜め壁（低摩擦でフルーツが必ず滑り落ちる）
     const barAB = (x1, y1, x2, y2, th) => {
@@ -1694,20 +1694,14 @@ class GameScene extends Phaser.Scene {
       this.add.circle(cx, cy, r, col, al).setDepth(1);
     };
     if (this.shapeKind === 'funnel') {
-      // 両壁から中央へ下る漏斗。中央下は開けて床へ（詰まり無し）
-      barAB(WALL_T, H * 0.34, W * 0.46, H * 0.74, 16);
-      barAB(W - WALL_T, H * 0.34, W * 0.54, H * 0.74, 16);
-    } else if (this.shapeKind === 'hourglass') {
-      // 上は中央へ集め、下は壁へ流す（袋小路を作らない）
-      barAB(WALL_T, H * 0.30, W * 0.5, H * 0.50, 14);
-      barAB(W - WALL_T, H * 0.30, W * 0.5, H * 0.50, 14);
-      barAB(W * 0.5, H * 0.57, WALL_T, H * 0.80, 14);
-      barAB(W * 0.5, H * 0.57, W - WALL_T, H * 0.80, 14);
+      // 中央付近に短い斜め線（約3cm）。壁際は大きく開けてフルーツが落ちる
+      barAB(W * 0.5 - 95, H * 0.56, W * 0.5 - 35, H * 0.70, 16);
+      barAB(W * 0.5 + 95, H * 0.56, W * 0.5 + 35, H * 0.70, 16);
     } else {
-      // 中央の柱（床から）＋左右の弾むピン
-      barAB(W * 0.5, floorY, W * 0.5, H * 0.42, 22);
-      addPeg(W * 0.28, H * 0.52, 14);
-      addPeg(W * 0.72, H * 0.52, 14);
+      // 中央の短い柱（約5cm）＋左右の弾むピン
+      barAB(W * 0.5, floorY, W * 0.5, floorY - 170, 22);
+      addPeg(W * 0.28, H * 0.55, 14);
+      addPeg(W * 0.72, H * 0.55, 14);
     }
     this.updateHud();
   }
