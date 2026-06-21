@@ -523,11 +523,7 @@ document.getElementById('best-display').textContent = getBest();
 class GameScene extends Phaser.Scene {
   constructor() { super({ key: 'GameScene' }); }
 
-  preload() {
-    this.load.crossOrigin = 'anonymous';
-    ['bg0_desert.jpg','bg1_city.jpg','bg2_forest.jpg','bg3_ocean.jpg','bg4_space.jpg']
-      .forEach((f,i)=> this.load.image('bgphoto'+i, f));
-  }
+  preload() {}
 
   create() {
     this.score = 0;
@@ -550,6 +546,7 @@ class GameScene extends Phaser.Scene {
     this.bgGraphics = this.add.graphics().setDepth(-2);
     this.bgParticles = [];
     this.bgAnimItems = []; // 動的アニメ用
+    this.loadBgPhotos();
     this.drawBackground(0);
 
     // Guide line (drop indicator)
@@ -834,6 +831,36 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  loadBgPhotos() {
+    const files = ['bg0_desert.jpg','bg1_city.jpg','bg2_forest.jpg','bg3_ocean.jpg','bg4_space.jpg'];
+    files.forEach((f, i) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const key = 'bgphoto' + i;
+        try {
+          if (this.textures.exists(key)) this.textures.removeKey(key);
+          this.textures.addImage(key, img);
+          if (this.currentBgLevel === i) this.applyBgPhoto(i);
+        } catch (e) {}
+      };
+      img.src = f;
+    });
+  }
+
+  applyBgPhoto(level) {
+    const key = 'bgphoto' + level;
+    if (!this.textures.exists(key)) return;
+    if (!this.bgPhoto) {
+      this.bgPhoto = this.add.image(GAME_W/2, GAME_H/2, key).setDepth(-3);
+    } else {
+      this.bgPhoto.setTexture(key).setVisible(true);
+    }
+    const src = this.textures.get(key).getSourceImage();
+    const sc = Math.max(GAME_W / src.width, GAME_H / src.height);
+    this.bgPhoto.setScale(sc).setPosition(GAME_W/2, GAME_H/2);
+  }
+
   drawBackground(score, animated = false) {
     const theme = getBgTheme(score);
     const level = BG_THEMES.indexOf(theme);
@@ -850,18 +877,7 @@ class GameScene extends Phaser.Scene {
     const g = this.bgGraphics;
     const W = GAME_W, H = GAME_H;
 
-    // 写真背景（ステージ別・最背面）
-    const photoKey = 'bgphoto' + level;
-    if (this.textures.exists(photoKey)) {
-      if (!this.bgPhoto) {
-        this.bgPhoto = this.add.image(W/2, H/2, photoKey).setDepth(-3);
-      } else {
-        this.bgPhoto.setTexture(photoKey).setVisible(true);
-      }
-      const src = this.textures.get(photoKey).getSourceImage();
-      const sc = Math.max(W / src.width, H / src.height);
-      this.bgPhoto.setScale(sc).setPosition(W/2, H/2);
-    }
+    this.applyBgPhoto(level);
     // 視認性確保の暗オーバーレイ（上下を濃く）
     g.fillStyle(0x000000, 0.40); g.fillRect(0, 0, W, H);
     g.fillStyle(0x000000, 0.30); g.fillRect(0, 0, W, 96);
