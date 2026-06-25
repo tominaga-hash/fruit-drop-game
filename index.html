@@ -1434,9 +1434,9 @@ class GameScene extends Phaser.Scene {
         this.lastCountNum = countNum;
         const isLast = countNum === 1;
         const dir = this.gravityDir === 1 ? '⬆' : '⬇';
-        this.warningText.setText(isLast ? dir + ' 反転!' : String(countNum));
+        this.warningText.setText(isLast ? '果物を離せ！' : String(countNum));
         this.warningText.setStyle({
-          fontSize: isLast ? '40px' : '64px',
+          fontSize: isLast ? '32px' : '64px',
           fontStyle: 'bold',
           color: isLast ? '#FF4444' : (countNum === 2 ? '#FF9900' : '#FFFF00'),
           stroke: '#000',
