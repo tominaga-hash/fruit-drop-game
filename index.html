@@ -505,8 +505,8 @@ class GameScene extends Phaser.Scene {
     this.guideLine = this.add.graphics();
 
     // Walls visual
-    const wallColor = 0x3a2a6e;
-    const wallAlpha = 0.6;
+    const wallColor = 0xffffff;
+    const wallAlpha = 0.22;
     this.add.rectangle(WALL_T / 2, GAME_H / 2, WALL_T, GAME_H, wallColor, wallAlpha);
     this.add.rectangle(GAME_W - WALL_T / 2, GAME_H / 2, WALL_T, GAME_H, wallColor, wallAlpha);
     this.add.rectangle(GAME_W / 2, GAME_H - FLOOR_T / 2, GAME_W, FLOOR_T, wallColor, wallAlpha);
