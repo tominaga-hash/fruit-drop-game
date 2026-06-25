@@ -23,7 +23,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: linear-gradient(135deg, #1a0a2e 0%, #16213e 50%, #0f3460 100%);
+    background: linear-gradient(135deg, #b3ecff 0%, #ffd9f0 45%, #fff4c2 100%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -44,36 +44,36 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 16px 16px 0 0;
-    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.94);
+    border-radius: 22px 22px 0 0;
+    border: 3px solid #ff9ed2;
     border-bottom: none;
   }
   #score-display {
     font-size: 22px;
     font-weight: 700;
-    color: #FFD700;
-    text-shadow: 0 0 10px rgba(255,215,0,0.5);
+    color: #ff3f97;
+    text-shadow: 0 1px 0 #fff;
   }
-  #score-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+  #score-label { font-size: 11px; color: #7a6f96; text-transform: uppercase; letter-spacing: 1px; }
   #next-fruit-box {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
   }
-  #next-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+  #next-label { font-size: 11px; color: #7a6f96; text-transform: uppercase; letter-spacing: 1px; }
   #next-canvas { width: 48px; height: 48px; border-radius: 50%; }
   #best-display {
     font-size: 14px;
     font-weight: 600;
-    color: #ff6eb4;
-    text-shadow: 0 0 8px rgba(255,110,180,0.4);
+    color: #1aa3e8;
+    text-shadow: 0 1px 0 #fff;
   }
-  #best-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+  #best-label { font-size: 11px; color: #7a6f96; text-transform: uppercase; letter-spacing: 1px; }
   #phaser-game canvas {
-    border-left: 1px solid rgba(255,255,255,0.15);
-    border-right: 1px solid rgba(255,255,255,0.15);
+    border-left: 3px solid #ff9ed2;
+    border-right: 3px solid #ff9ed2;
     display: block;
   }
   #bottom-bar {
@@ -83,26 +83,28 @@
     justify-content: center;
     gap: 12px;
     padding: 8px 12px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 0 0 16px 16px;
-    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.94);
+    border-radius: 0 0 22px 22px;
+    border: 3px solid #ff9ed2;
     border-top: none;
   }
   .btn {
     padding: 6px 14px;
     border-radius: 20px;
-    border: 1px solid rgba(255,255,255,0.2);
-    background: rgba(255,255,255,0.08);
-    color: #fff;
+    border: 2px solid #7ad0ff;
+    background: #ffffff;
+    color: #3a4a6a;
     font-size: 13px;
+    font-weight: 700;
     cursor: pointer;
+    box-shadow: 0 2px 0 #bfe6ff;
     transition: all 0.2s;
   }
-  .btn:hover { background: rgba(255,255,255,0.18); }
+  .btn:hover { background: #eaf7ff; }
   #overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.75);
+    background: rgba(90,50,90,0.5);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -112,32 +114,32 @@
   }
   #overlay.hidden { display: none; }
   .modal {
-    background: linear-gradient(145deg, #1e1040, #2a1a5e);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: linear-gradient(145deg, #ffffff, #fff0f8);
+    border: 4px solid #ffd24d;
     border-radius: 24px;
     padding: 32px 40px;
     text-align: center;
     max-width: 320px;
     width: 90%;
   }
-  .modal h2 { font-size: 28px; color: #FFD700; margin-bottom: 8px; }
-  .modal p { color: #ccc; margin-bottom: 4px; font-size: 15px; }
-  .modal .big-score { font-size: 48px; font-weight: 800; color: #fff; margin: 12px 0; }
+  .modal h2 { font-size: 28px; color: #ff3f97; margin-bottom: 8px; }
+  .modal p { color: #7a7a8a; margin-bottom: 4px; font-size: 15px; }
+  .modal .big-score { font-size: 48px; font-weight: 800; color: #1aa3e8; margin: 12px 0; }
   .modal-btn {
     margin-top: 16px;
     padding: 12px 32px;
     border-radius: 30px;
     border: none;
-    background: linear-gradient(90deg, #FF6B6B, #FFD700);
-    color: #1a0a2e;
+    background: linear-gradient(90deg, #ff7ab5, #ffd24d);
+    color: #5a2a4a;
     font-size: 16px;
     font-weight: 700;
     cursor: pointer;
     width: 100%;
   }
   #ranking-panel {
-    background: linear-gradient(145deg, #1e1040, #2a1a5e);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: linear-gradient(145deg, #ffffff, #fff0f8);
+    border: 4px solid #ffd24d;
     border-radius: 24px;
     padding: 24px 32px;
     max-width: 320px;
@@ -145,49 +147,49 @@
     max-height: 60vh;
     overflow-y: auto;
   }
-  #ranking-panel h3 { color: #FFD700; font-size: 20px; margin-bottom: 16px; text-align: center; }
+  #ranking-panel h3 { color: #ff3f97; font-size: 20px; margin-bottom: 16px; text-align: center; }
   .rank-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 8px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    color: #fff;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    color: #4a4a5a;
     font-size: 14px;
   }
-  .rank-num { width: 28px; font-weight: 700; color: #FFD700; }
-  .rank-score { font-weight: 700; color: #fff; }
-  .rank-date { font-size: 11px; color: #888; }
+  .rank-num { width: 28px; font-weight: 700; color: #ff8a3d; }
+  .rank-score { font-weight: 700; color: #1aa3e8; }
+  .rank-date { font-size: 11px; color: #9a9aa8; }
   #ranking-close { margin-top: 16px; width: 100%; }
 </style>
 </head>
 <body>
-<div id="title-screen" style="position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#1a0a2e,#16213e,#0f3460);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:20px;">
+<div id="title-screen" style="position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#b3ecff,#ffd9f0 45%,#fff4c2);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:20px;">
   <div style="text-align:center">
     <div style="font-size:64px;animation:bounce 1s infinite alternate;">🍉</div>
-    <div style="font-size:32px;font-weight:900;color:#FFD700;text-shadow:0 0 20px rgba(255,215,0,0.6);letter-spacing:2px;margin-top:8px">フルーツドロップ</div>
-    <div style="font-size:13px;color:#aaa;margin-top:4px;letter-spacing:3px">FRUIT DROP</div>
+    <div style="font-size:34px;font-weight:900;color:#ff3f97;text-shadow:2px 2px 0 #fff,0 0 12px rgba(255,255,255,0.6);letter-spacing:2px;margin-top:8px">フルーツドロップ</div>
+    <div style="font-size:13px;color:#7a6f96;margin-top:4px;letter-spacing:3px">FRUIT DROP</div>
   </div>
   <div style="display:flex;flex-direction:column;gap:14px;width:260px;margin-top:16px">
-    <button id="btn-mode-normal" style="padding:16px;border-radius:20px;border:2px solid rgba(255,215,0,0.5);background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,215,0,0.05));color:#FFD700;font-size:18px;font-weight:700;cursor:pointer;">
+    <button id="btn-mode-normal" style="padding:16px;border-radius:20px;border:3px solid #ffcf2e;background:#fff7d6;color:#d98f00;font-size:18px;font-weight:700;cursor:pointer;">
       🍎 通常モード
-      <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">フルーツを積み上げよう</div>
+      <div style="font-size:11px;color:#7a6f96;font-weight:400;margin-top:4px">フルーツを積み上げよう</div>
     </button>
-    <button id="btn-mode-flip" style="padding:16px;border-radius:20px;border:2px solid rgba(100,180,255,0.5);background:linear-gradient(135deg,rgba(100,180,255,0.15),rgba(100,180,255,0.05));color:#88ccff;font-size:18px;font-weight:700;cursor:pointer;">
+    <button id="btn-mode-flip" style="padding:16px;border-radius:20px;border:3px solid #5cb3ff;background:#e6f4ff;color:#1f7fd0;font-size:18px;font-weight:700;cursor:pointer;">
       🔄 反転モード
-      <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">重力が反転する！ライフ❤️×3</div>
+      <div style="font-size:11px;color:#7a6f96;font-weight:400;margin-top:4px">重力が反転する！ライフ❤️×3</div>
     </button>
-    <button id="btn-mode-time" style="padding:16px;border-radius:20px;border:2px solid rgba(255,150,40,0.5);background:linear-gradient(135deg,rgba(255,150,40,0.18),rgba(255,150,40,0.05));color:#ffae42;font-size:18px;font-weight:700;cursor:pointer;">
+    <button id="btn-mode-time" style="padding:16px;border-radius:20px;border:3px solid #ff8a3d;background:#fff0e2;color:#e06a10;font-size:18px;font-weight:700;cursor:pointer;">
       ⏱ タイムアタック
-      <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">2分でハイスコアを狙え</div>
+      <div style="font-size:11px;color:#7a6f96;font-weight:400;margin-top:4px">2分でハイスコアを狙え</div>
     </button>
-    <button id="btn-mode-mission" style="padding:16px;border-radius:20px;border:2px solid rgba(120,220,120,0.5);background:linear-gradient(135deg,rgba(120,220,120,0.18),rgba(120,220,120,0.05));color:#9be89b;font-size:18px;font-weight:700;cursor:pointer;">
+    <button id="btn-mode-mission" style="padding:16px;border-radius:20px;border:3px solid #5fd06a;background:#e9fbe9;color:#2a9b3a;font-size:18px;font-weight:700;cursor:pointer;">
       🎯 ミッション
-      <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">お題を順番にクリア</div>
+      <div style="font-size:11px;color:#7a6f96;font-weight:400;margin-top:4px">お題を順番にクリア</div>
     </button>
-    <button id="btn-mode-shape" style="padding:16px;border-radius:20px;border:2px solid rgba(190,150,255,0.5);background:linear-gradient(135deg,rgba(190,150,255,0.18),rgba(190,150,255,0.05));color:#c9a6ff;font-size:18px;font-weight:700;cursor:pointer;">
+    <button id="btn-mode-shape" style="padding:16px;border-radius:20px;border:3px solid #b98cff;background:#f3ecff;color:#7a4fd0;font-size:18px;font-weight:700;cursor:pointer;">
       🧩 変形ステージ
-      <div style="font-size:11px;color:#aaa;font-weight:400;margin-top:4px">形がいろいろ変わる（横長）</div>
+      <div style="font-size:11px;color:#7a6f96;font-weight:400;margin-top:4px">形がいろいろ変わる（横長）</div>
     </button>
   </div>
   <div style="font-size:11px;color:#555;margin-top:8px">指を離した場所にフルーツが落ちる</div>
@@ -207,7 +209,7 @@
       <canvas id="next-canvas" width="48" height="48"></canvas>
     </div>
     <div id="life-box" style="display:flex;flex-direction:column;align-items:center;gap:2px;visibility:hidden">
-      <div id="next-label" style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:1px">LIFE</div>
+      <div id="next-label" style="font-size:11px;color:#7a6f96;text-transform:uppercase;letter-spacing:1px">LIFE</div>
       <div id="life-display" style="font-size:20px;letter-spacing:2px">❤️❤️❤️</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
