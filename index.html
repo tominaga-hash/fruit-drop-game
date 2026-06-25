@@ -545,7 +545,9 @@ class GameScene extends Phaser.Scene {
     // 重力反転システム（反転モードのみ有効）
     this.gravityDir = 1;
     this.gravityTimer = 0;
-    this.gravityInterval = 60000; // 60秒
+    this.gravityInterval = [30000, 45000, 60000][Math.floor(Math.random() * 3)]; // 30/45/60秒ランダム
+    this.warningActive = false;
+    this.releasedDuringWarning = false;
     this.warningShown = false;
     this.lastCountNum = -1; // カウントダウン管理
     this.flipGracePeriod = 0;
@@ -652,6 +654,7 @@ class GameScene extends Phaser.Scene {
     dropCooldown = true;
     canDrop = false;
     this.isHoldingFruit = false; // 落とした
+    if (this.warningActive) this.releasedDuringWarning = true; // 警告中に離した→無傷
     playDropSound();
 
     const isBomb = nextIsBomb;
@@ -1429,6 +1432,7 @@ class GameScene extends Phaser.Scene {
 
     // カウントダウン（残り3秒から）
     if (remaining <= 3000) {
+      this.warningActive = true;
       const countNum = Math.ceil(remaining / 1000); // 3,2,1
       if (countNum !== this.lastCountNum && countNum >= 1) {
         this.lastCountNum = countNum;
@@ -1483,14 +1487,18 @@ class GameScene extends Phaser.Scene {
     // 重力反転実行
     if (this.gravityTimer >= this.gravityInterval) {
       this.gravityTimer = 0;
+      this.gravityInterval = [30000, 45000, 60000][Math.floor(Math.random() * 3)]; // 次回もランダム
       this.warningShown = false;
       this.lastCountNum = -1;
+      const releasedSafely = this.releasedDuringWarning;
+      this.releasedDuringWarning = false;
+      this.warningActive = false;
       this.gravityDir *= -1;
       this.matter.world.setGravity(0, 2 * this.gravityDir);
       this.flipGracePeriod = 2000; // 反転後2秒はゲームオーバー判定しない
 
       // フルーツを構えている間だけライフ減少
-      if (this.isHoldingFruit) {
+      if (!releasedSafely) {
         playerLife--;
         updateLifeDisplay();
 
