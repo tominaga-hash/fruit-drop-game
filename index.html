@@ -192,6 +192,7 @@
       <div style="font-size:11px;color:#7a6f96;font-weight:400;margin-top:4px">形がいろいろ変わる（横長）</div>
     </button>
   </div>
+  <button id="btn-bomb-toggle" style="margin-top:6px;padding:8px 20px;border-radius:16px;border:2px solid #ff9ed2;background:#fff;color:#e0559a;font-size:13px;font-weight:700;cursor:pointer">💣 爆弾: あり</button>
   <div style="font-size:11px;color:#555;margin-top:8px">指を離した場所にフルーツが落ちる</div>
 </div>
 <style>
@@ -206,7 +207,11 @@
     </div>
     <div id="next-fruit-box">
       <div id="next-label">NEXT</div>
-      <canvas id="next-canvas" width="48" height="48"></canvas>
+      <div style="display:flex;align-items:center;gap:3px">
+        <canvas id="next-canvas-1" width="42" height="42"></canvas>
+        <canvas id="next-canvas-2" width="32" height="32"></canvas>
+        <canvas id="next-canvas-3" width="28" height="28"></canvas>
+      </div>
     </div>
     <div id="life-box" style="display:flex;flex-direction:column;align-items:center;gap:2px;visibility:hidden">
       <div id="next-label" style="font-size:11px;color:#7a6f96;text-transform:uppercase;letter-spacing:1px">LIFE</div>
@@ -370,40 +375,32 @@ function getBest(mode) {
 // 旧スコアをリセット（全モード共通だった旧データを削除し、モード別に0から）
 try { localStorage.removeItem('fruitdrop_ranking'); } catch (e) {}
 
-// ===================== NEXT FRUIT PREVIEW =====================
-let nextFruitIndex = Math.floor(Math.random() * 5);
-let nextIsBomb = false;
-function rollNext() {
-  nextIsBomb = Math.random() < (1/30);
-  if (!nextIsBomb) nextFruitIndex = Math.floor(Math.random() * 5);
+// ===================== NEXT FRUIT QUEUE (先読み3つ) =====================
+let bombEnabled = true;           // 爆弾あり/なし
+let fruitQueue = [];              // 各要素 {idx, bomb}
+function genFruit() {
+  const bomb = bombEnabled && Math.random() < (1/30);
+  return { bomb, idx: bomb ? 0 : Math.floor(Math.random() * 5) };
 }
-function drawNextFruit(idx) {
-  const canvas = document.getElementById('next-canvas');
-  const ctx2 = canvas.getContext('2d');
-  ctx2.clearRect(0, 0, 48, 48);
-  if (nextIsBomb) {
-    ctx2.fillStyle = '#55555533';
-    ctx2.beginPath();
-    ctx2.arc(24, 24, 20, 0, Math.PI * 2);
-    ctx2.fill();
-    ctx2.font = '26px serif';
-    ctx2.textAlign = 'center';
-    ctx2.textBaseline = 'middle';
-    ctx2.fillText('💣', 24, 26);
-  } else {
-    const f = FRUITS[idx];
-    ctx2.fillStyle = f.color + '33';
-    ctx2.beginPath();
-    ctx2.arc(24, 24, 20, 0, Math.PI * 2);
-    ctx2.fill();
-    ctx2.font = '26px serif';
-    ctx2.textAlign = 'center';
-    ctx2.textBaseline = 'middle';
-    ctx2.fillText(f.emoji, 24, 26);
+function ensureQueue() { while (fruitQueue.length < 4) fruitQueue.push(genFruit()); }
+function resetQueue() { fruitQueue = []; ensureQueue(); }
+function drawNextQueue() {
+  for (let n = 1; n <= 3; n++) {
+    const c = document.getElementById('next-canvas-' + n);
+    if (!c) continue;
+    const g = c.getContext('2d');
+    g.clearRect(0, 0, c.width, c.height);
+    const e = fruitQueue[n];
+    if (!e) continue;
+    const cx = c.width / 2, cy = c.height / 2, r = c.width / 2 - 2;
+    g.fillStyle = (e.bomb ? '#555555' : FRUITS[e.idx].color) + '33';
+    g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+    g.font = Math.floor(c.width * 0.62) + 'px serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(e.bomb ? '💣' : FRUITS[e.idx].emoji, cx, cy + 1);
   }
 }
-rollNext();
-drawNextFruit(nextFruitIndex);
+resetQueue();
 
 // ===================== PHASER GAME =====================
 let gameScore = 0;
@@ -517,11 +514,15 @@ class GameScene extends Phaser.Scene {
     this.dangerLine.lineBetween(WALL_T, 80, GAME_W - WALL_T, 80);
     this.dangerLine.lineBetween(WALL_T, GAME_H - 80, GAME_W - WALL_T, GAME_H - 80);
 
-    // Current fruit indicator
-    this.currentFruitIdx = nextFruitIndex;
+    // Current fruit indicator（キュー先頭）
+    this.currentFruitIdx = fruitQueue[0].idx;
+    this.currentIsBomb = fruitQueue[0].bomb;
     this.dropX = GAME_W / 2;
     const initPreviewY = 42;
-    this.currentPreview = this.createFruitGraphic(this.dropX, initPreviewY, this.currentFruitIdx, true);
+    this.currentPreview = this.currentIsBomb
+      ? this.createBombGraphic(this.dropX, initPreviewY, 0, true)
+      : this.createFruitGraphic(this.dropX, initPreviewY, this.currentFruitIdx, true);
+    drawNextQueue();
 
     // Input — 最初から自由に移動、指を離したら落下
     this.input.on('pointermove', (ptr) => {
@@ -657,7 +658,7 @@ class GameScene extends Phaser.Scene {
     if (this.warningActive) this.releasedDuringWarning = true; // 警告中に離した→無傷
     playDropSound();
 
-    const isBomb = nextIsBomb;
+    const isBomb = this.currentIsBomb;
     const idx = this.currentFruitIdx;
     const x = this.dropX;
     const y = this.gravityDir === 1 ? 55 : GAME_H - 55;
@@ -671,7 +672,7 @@ class GameScene extends Phaser.Scene {
     this.guideLine.clear();
 
     // 落下エフェクト（軌跡の光）
-    const trailColor = nextIsBomb ? 0x555555 : Phaser.Display.Color.HexStringToColor(FRUITS[this.currentFruitIdx]?.color || '#ffffff').color;
+    const trailColor = this.currentIsBomb ? 0x555555 : Phaser.Display.Color.HexStringToColor(FRUITS[this.currentFruitIdx]?.color || '#ffffff').color;
     for (let i = 0; i < 6; i++) {
       const trail = this.add.graphics();
       trail.fillStyle(trailColor, 0.4 - i * 0.06);
@@ -701,17 +702,19 @@ class GameScene extends Phaser.Scene {
       this.fruits.push({ body, gfx, fruitIdx: idx });
     }
 
-    // Next
-    rollNext();
-    drawNextFruit(nextFruitIndex);
+    // Next: キューを1つ進める
+    fruitQueue.shift();
+    ensureQueue();
+    drawNextQueue();
 
     this.time.delayedCall(500, () => {
       dropCooldown = false;
       canDrop = true;
-      this.currentFruitIdx = nextFruitIndex;
+      this.currentFruitIdx = fruitQueue[0].idx;
+      this.currentIsBomb = fruitQueue[0].bomb;
       const previewY = this.gravityDir === 1 ? 42 : GAME_H - 42;
       this.isHoldingFruit = true; // 次のフルーツを構えた
-      this.currentPreview = nextIsBomb
+      this.currentPreview = this.currentIsBomb
         ? this.createBombGraphic(this.dropX, previewY, 0, true)
         : this.createFruitGraphic(this.dropX, previewY, this.currentFruitIdx, true);
       this.updatePreview();
@@ -1840,8 +1843,8 @@ function restartGame() {
   document.getElementById('overlay').classList.add('hidden');
   gameScore = 0;
   document.getElementById('score-display').textContent = '0';
-  nextFruitIndex = Math.floor(Math.random() * 5);
-  drawNextFruit(nextFruitIndex);
+  resetQueue();
+  drawNextQueue();
   game.scene.stop('GameScene');
   game.scene.start('GameScene');
 }
@@ -1878,8 +1881,8 @@ document.getElementById('btn-mode-normal').addEventListener('click', () => {
   try { startBGM(0); } catch (e) {}
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
-  rollNext();
-  drawNextFruit(nextFruitIndex);
+  resetQueue();
+  drawNextQueue();
   game.scene.start('GameScene');
 });
 document.getElementById('btn-mode-flip').addEventListener('click', () => {
@@ -1888,8 +1891,8 @@ document.getElementById('btn-mode-flip').addEventListener('click', () => {
   try { startBGM(0); } catch (e) {}
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
-  rollNext();
-  drawNextFruit(nextFruitIndex);
+  resetQueue();
+  drawNextQueue();
   game.scene.start('GameScene');
 });
 function applyFieldWidth(mode) {
@@ -1904,13 +1907,17 @@ function _startMode(mode) {
   try { startBGM(0); } catch (e) {}
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
-  rollNext();
-  drawNextFruit(nextFruitIndex);
+  resetQueue();
+  drawNextQueue();
   game.scene.start('GameScene');
 }
 document.getElementById('btn-mode-time').addEventListener('click', () => _startMode('time'));
 document.getElementById('btn-mode-mission').addEventListener('click', () => _startMode('mission'));
 document.getElementById('btn-mode-shape').addEventListener('click', () => _startMode('shape'));
+document.getElementById('btn-bomb-toggle').addEventListener('click', () => {
+  bombEnabled = !bombEnabled;
+  document.getElementById('btn-bomb-toggle').textContent = bombEnabled ? '💣 爆弾: あり' : '💣 爆弾: なし';
+});
 
 // リスタート時にタイトルに戻る
 document.getElementById('btn-restart').removeEventListener('click', restartGame);
