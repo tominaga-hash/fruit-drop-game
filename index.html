@@ -519,6 +519,7 @@ class GameScene extends Phaser.Scene {
     this.dangerLine.lineBetween(WALL_T, 80, GAME_W - WALL_T, 80);
     this.dangerLine.lineBetween(WALL_T, GAME_H - 80, GAME_W - WALL_T, GAME_H - 80);
 
+    this.fScale = (gameMode === 'rotate') ? 0.8 : 1; // 回転ステージは一回り小さく
     // Current fruit indicator（キュー先頭）
     this.currentFruitIdx = fruitQueue[0].idx;
     this.currentIsBomb = fruitQueue[0].bomb;
@@ -533,13 +534,13 @@ class GameScene extends Phaser.Scene {
     this.input.on('pointermove', (ptr) => {
       if (gameOver || dropCooldown) return;
       const f = FRUITS[this.currentFruitIdx];
-      this.dropX = Phaser.Math.Clamp(ptr.x, WALL_T + f.radius + 2, GAME_W - WALL_T - f.radius - 2);
+      this.dropX = Phaser.Math.Clamp(ptr.x, WALL_T + f.radius * this.fScale + 2, GAME_W - WALL_T - f.radius * this.fScale - 2);
       this.updatePreview();
     });
     this.input.on('pointerup', (ptr) => {
       if (gameOver || dropCooldown) return;
       const f = FRUITS[this.currentFruitIdx];
-      this.dropX = Phaser.Math.Clamp(ptr.x, WALL_T + f.radius + 2, GAME_W - WALL_T - f.radius - 2);
+      this.dropX = Phaser.Math.Clamp(ptr.x, WALL_T + f.radius * this.fScale + 2, GAME_W - WALL_T - f.radius * this.fScale - 2);
       this.dropFruit();
     });
 
@@ -606,32 +607,33 @@ class GameScene extends Phaser.Scene {
 
   createFruitGraphic(x, y, fruitIdx, isPreview = false) {
     const f = FRUITS[fruitIdx];
+    const rad = f.radius * (this.fScale || 1);
     const g = this.add.graphics();
     const alpha = isPreview ? 0.55 : 1.0;
 
     // Glow
     if (!isPreview) {
       g.fillStyle(Phaser.Display.Color.HexStringToColor(f.color).color, 0.18);
-      g.fillCircle(0, 0, f.radius + 6);
+      g.fillCircle(0, 0, rad + 6);
     }
     // Shadow
     g.fillStyle(0x000000, 0.2);
-    g.fillCircle(3, 4, f.radius - 2);
+    g.fillCircle(3, 4, rad - 2);
     // Main circle
     const col = Phaser.Display.Color.HexStringToColor(f.color).color;
     g.fillStyle(col, alpha);
-    g.fillCircle(0, 0, f.radius);
+    g.fillCircle(0, 0, rad);
     // Highlight
     g.fillStyle(0xffffff, 0.25);
-    g.fillCircle(-f.radius * 0.28, -f.radius * 0.28, f.radius * 0.32);
+    g.fillCircle(-rad * 0.28, -rad * 0.28, rad * 0.32);
     // 白枠
     g.lineStyle(2, 0xffffff, isPreview ? 0.4 : 0.7);
-    g.strokeCircle(0, 0, f.radius);
+    g.strokeCircle(0, 0, rad);
     g.x = x; g.y = y;
 
     // Emoji text
     const txt = this.add.text(x, y, f.emoji, {
-      fontSize: Math.floor(f.radius * 1.7) + 'px',
+      fontSize: Math.floor(rad * 1.7) + 'px',
       align: 'center'
     }).setOrigin(0.5, 0.52).setAlpha(alpha);
 
@@ -703,7 +705,7 @@ class GameScene extends Phaser.Scene {
       this.fruits.push({ body, gfx, fruitIdx: BOMB_MARKER, bombStage: 0 });
     } else {
       const f = FRUITS[idx];
-      const body = this.matter.add.circle(x, y, f.radius, {
+      const body = this.matter.add.circle(x, y, f.radius * this.fScale, {
         restitution: 0.25, friction: 0.5, frictionAir: 0.01, density: 0.002,
       }, 20);
       const gfx = this.createFruitGraphic(x, y, idx, false);
@@ -810,7 +812,7 @@ class GameScene extends Phaser.Scene {
 
     // New fruit
     this.time.delayedCall(60, () => {
-      const body = this.matter.add.circle(mx, my, FRUITS[newIdx].radius, {
+      const body = this.matter.add.circle(mx, my, FRUITS[newIdx].radius * this.fScale, {
         restitution: 0.25, friction: 0.5, frictionAir: 0.01, density: 0.002,
       }, 20);
       this.matter.body.setVelocity(body, { x: 0, y: -1 });
