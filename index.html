@@ -191,6 +191,10 @@
       🧩 変形ステージ
       <div style="font-size:11px;color:#7a6f96;font-weight:400;margin-top:4px">形がいろいろ変わる（横長）</div>
     </button>
+    <button id="btn-mode-rotate" style="padding:16px;border-radius:20px;border:3px solid #46c8ff;background:#e3f6ff;color:#1785c0;font-size:18px;font-weight:700;cursor:pointer;">
+      🔃 回転ステージ
+      <div style="font-size:11px;color:#7a6f96;font-weight:400;margin-top:4px">正方形の盤面が時計回りに回転</div>
+    </button>
   </div>
   <button id="btn-bomb-toggle" style="margin-top:6px;padding:8px 20px;border-radius:16px;border:2px solid #ff9ed2;background:#fff;color:#e0559a;font-size:13px;font-weight:700;cursor:pointer">💣 爆弾: あり</button>
   <div style="font-size:11px;color:#555;margin-top:8px">指を離した場所にフルーツが落ちる</div>
@@ -357,7 +361,7 @@ document.addEventListener('pointerdown', () => {
 }, { passive: true });
 
 // ===================== RANKING =====================
-const MODE_LABEL = { normal:'通常', flip:'反転', time:'タイムアタック', mission:'ミッション', shape:'変形' };
+const MODE_LABEL = { normal:'通常', flip:'反転', time:'タイムアタック', mission:'ミッション', shape:'変形', rotate:'回転' };
 function rankKey(mode) { return 'fruitdrop_rank_' + (mode || gameMode || 'normal'); }
 function getRanking(mode) {
   try { return JSON.parse(localStorage.getItem(rankKey(mode)) || '[]'); } catch { return []; }
@@ -419,7 +423,8 @@ function updateLifeDisplay() {
 
 const BASE_W = Math.min(400, window.innerWidth);
 let GAME_W = BASE_W;
-const GAME_H = Math.min(560, window.innerHeight - 120);
+const BASE_H = Math.min(560, window.innerHeight - 120);
+let GAME_H = BASE_H;
 const WALL_T = 14;
 const FLOOR_T = 14;
 
@@ -547,6 +552,8 @@ class GameScene extends Phaser.Scene {
     this.gravityDir = 1;
     this.gravityTimer = 0;
     this.gravityInterval = [30000, 45000, 60000][Math.floor(Math.random() * 3)]; // 30/45/60秒ランダム
+    this.rotTimer = 0;
+    this.rotInterval = [15000, 20000, 25000][Math.floor(Math.random() * 3)]; // 回転までの時間
     this.warningActive = false;
     this.releasedDuringWarning = false;
     this.warningShown = false;
@@ -556,7 +563,7 @@ class GameScene extends Phaser.Scene {
     this.flipEnabled = (gameMode === 'flip');
 
     // ライフ表示
-    document.getElementById('life-box').style.visibility = this.flipEnabled ? 'visible' : 'hidden';
+    document.getElementById('life-box').style.visibility = 'hidden'; // ライフ制廃止
 
     // ===== モード別セットアップ（time / mission） =====
     this.modeKind = gameMode; // 'normal' | 'flip' | 'time' | 'mission'
@@ -1407,6 +1414,46 @@ class GameScene extends Phaser.Scene {
       if (this.timeLeft <= 0) { this.timeLeft = 0; this.triggerGameOver('TIME UP'); return; }
     }
 
+    // 回転ステージ：一定時間ごとに中身を90°時計回りに回転
+    if (this.modeKind === 'rotate') {
+      this.rotTimer += delta;
+      const rem = this.rotInterval - this.rotTimer;
+      const prog = this.rotTimer / this.rotInterval;
+      this.gravityBar.clear();
+      const bw = (GAME_W - WALL_T * 2) * (1 - prog);
+      const bc = rem < 1500 ? 0xFF4444 : (rem < 3000 ? 0xFF9900 : 0x66f0ff);
+      this.gravityBar.fillStyle(bc, 0.7);
+      this.gravityBar.fillRect(WALL_T, GAME_H - FLOOR_T - 6, bw, 4);
+      if (rem <= 3000) {
+        const cn = Math.ceil(rem / 1000);
+        if (cn !== this.lastCountNum && cn >= 1) {
+          this.lastCountNum = cn;
+          const last = cn === 1;
+          this.warningText.setText(last ? '回転！' : String(cn));
+          this.warningText.setStyle({ fontSize: last ? '34px' : '64px', fontStyle: 'bold', color: last ? '#2ec7ff' : (cn === 2 ? '#FF9900' : '#FFDD00'), stroke: '#000', strokeThickness: 6 });
+          this.warningText.setAlpha(1).setScale(1.4);
+          this.tweens.killTweensOf(this.warningText);
+          this.tweens.add({ targets: this.warningText, scaleX: 1, scaleY: 1, duration: 250,
+            onComplete: () => { this.tweens.add({ targets: this.warningText, alpha: 0, duration: 300, delay: 250 }); } });
+        }
+      }
+      if (this.rotTimer >= this.rotInterval) {
+        this.rotTimer = 0;
+        this.rotInterval = [15000, 20000, 25000][Math.floor(Math.random() * 3)];
+        this.lastCountNum = -1;
+        this.doRotate();
+        this.flipGracePeriod = 1800;
+      }
+      if (!dropCooldown && this.flipGracePeriod <= 0 && this.quakeGrace <= 0) {
+        for (const fruit of this.fruits) {
+          const vel = fruit.body.velocity;
+          const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+          if (fruit.body.position.y < 80 && speed < 0.5) { this.triggerGameOver(); return; }
+        }
+      }
+      return;
+    }
+
     // 重力反転タイマー（反転モードのみ）
     if (!this.flipEnabled) {
       // 通常モード：ゲームオーバー判定のみ（下方向固定）
@@ -1441,7 +1488,7 @@ class GameScene extends Phaser.Scene {
         this.lastCountNum = countNum;
         const isLast = countNum === 1;
         const dir = this.gravityDir === 1 ? '⬆' : '⬇';
-        this.warningText.setText(isLast ? '果物を離せ！' : String(countNum));
+        this.warningText.setText(isLast ? '反転！' : String(countNum));
         this.warningText.setStyle({
           fontSize: isLast ? '32px' : '64px',
           fontStyle: 'bold',
@@ -1493,57 +1540,11 @@ class GameScene extends Phaser.Scene {
       this.gravityInterval = [30000, 45000, 60000][Math.floor(Math.random() * 3)]; // 次回もランダム
       this.warningShown = false;
       this.lastCountNum = -1;
-      const releasedSafely = this.releasedDuringWarning;
       this.releasedDuringWarning = false;
       this.warningActive = false;
       this.gravityDir *= -1;
       this.matter.world.setGravity(0, 2 * this.gravityDir);
       this.flipGracePeriod = 2000; // 反転後2秒はゲームオーバー判定しない
-
-      // フルーツを構えている間だけライフ減少
-      if (!releasedSafely) {
-        playerLife--;
-        updateLifeDisplay();
-
-        // ダメージエフェクト
-        const dmg = this.add.text(GAME_W / 2, GAME_H / 2 - 40, '💔 -1', {
-          fontSize: '36px', fontStyle: 'bold', color: '#FF4444',
-          stroke: '#000', strokeThickness: 4
-        }).setOrigin(0.5).setDepth(20);
-        this.tweens.add({
-          targets: dmg, y: GAME_H / 2 - 100, alpha: 0, duration: 1000,
-          onComplete: () => dmg.destroy()
-        });
-
-        // 赤点滅（3回）
-        const redFlash = this.add.rectangle(GAME_W/2, GAME_H/2, GAME_W, GAME_H, 0xFF0000, 0).setDepth(19);
-        this.tweens.add({
-          targets: redFlash,
-          alpha: { from: 0, to: 0.45 },
-          duration: 120,
-          yoyo: true,
-          repeat: 2,
-          onComplete: () => redFlash.destroy()
-        });
-
-        // 画面揺れ（強め）
-        this.cameras.main.shake(500, 0.022);
-
-        // CSS側でも赤枠を点滅
-        const canvas = document.querySelector('#phaser-game canvas');
-        if (canvas) {
-          canvas.style.transition = 'box-shadow 0.1s';
-          canvas.style.boxShadow = '0 0 0 6px #FF0000';
-          setTimeout(() => { canvas.style.boxShadow = '0 0 0 6px #FF000088'; }, 120);
-          setTimeout(() => { canvas.style.boxShadow = '0 0 0 6px #FF0000'; }, 240);
-          setTimeout(() => { canvas.style.boxShadow = 'none'; canvas.style.transition = ''; }, 500);
-        }
-
-        // ライフ0でゲームオーバー
-        if (playerLife <= 0) {
-          this.time.delayedCall(500, () => this.triggerGameOver());
-        }
-      }
 
       // 境界を反転（天井・床どちらも有効）
       this.matter.world.setBounds(WALL_T, 0, GAME_W - WALL_T * 2, GAME_H - FLOOR_T, 64, true, true, true, true);
@@ -1600,6 +1601,9 @@ class GameScene extends Phaser.Scene {
       const mi = this.missions[this.missionIndex];
       this.hud.setText(mi ? ('\uD83C\uDFAF ' + mi.label) : '');
       this.hud.setColor('#9be89b');
+    } else if (this.modeKind === 'rotate') {
+      this.hud.setText('\uD83D\uDD03 回転');
+      this.hud.setColor('#2ec7ff');
     } else if (this.modeKind === 'shape') {
       const sl = { funnel:'漏斗', hourglass:'砂時計', pillar:'障害物' };
       this.hud.setText('\uD83E\uDDE9 ' + (sl[this.shapeKind] || '変形ステージ'));
@@ -1691,6 +1695,33 @@ class GameScene extends Phaser.Scene {
     const label = horizontal ? '横揺れ！' : '縦揺れ！';
     const t = this.add.text(GAME_W / 2, 70, label, { fontSize:'24px', fontStyle:'bold', color:'#ffcc66', stroke:'#000', strokeThickness:4 }).setOrigin(0.5).setDepth(20).setAlpha(0);
     this.tweens.add({ targets:t, alpha:1, duration:200, hold:600, yoyo:true, onComplete:() => t.destroy() });
+  }
+
+  doRotate() {
+    const MB = Phaser.Physics.Matter.Matter.Body;
+    const cx = GAME_W / 2, cy = GAME_H / 2;
+    this.fruits.forEach(f => {
+      const p = f.body.position;
+      const dx = p.x - cx, dy = p.y - cy;
+      // 画面座標(y下向き)での時計回り90°: (dx,dy)->(-dy,dx)
+      const nx = cx - dy, ny = cy + dx;
+      MB.setPosition(f.body, { x: Phaser.Math.Clamp(nx, WALL_T + 6, GAME_W - WALL_T - 6), y: Phaser.Math.Clamp(ny, 6, GAME_H - FLOOR_T - 6) });
+      MB.setVelocity(f.body, { x: 0, y: 0 });
+      MB.setAngularVelocity(f.body, 0.15);
+    });
+    this.cameras.main.shake(250, 0.006);
+    if (soundEnabled) {
+      try {
+        const ctx = getAudioCtx();
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(300, ctx.currentTime);
+        o.frequency.linearRampToValueAtTime(720, ctx.currentTime + 0.35);
+        g.gain.setValueAtTime(0.22, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.4);
+      } catch (e) {}
+    }
   }
 
   buildShape() {
@@ -1896,7 +1927,9 @@ document.getElementById('btn-mode-flip').addEventListener('click', () => {
   game.scene.start('GameScene');
 });
 function applyFieldWidth(mode) {
-  GAME_W = (mode === 'shape') ? Math.min(Math.round(BASE_W * 1.5), window.innerWidth) : BASE_W;
+  if (mode === 'shape') { GAME_W = Math.min(Math.round(BASE_W * 1.5), window.innerWidth); GAME_H = BASE_H; }
+  else if (mode === 'rotate') { const sq = Math.min(BASE_W, BASE_H); GAME_W = sq; GAME_H = sq; }
+  else { GAME_W = BASE_W; GAME_H = BASE_H; }
   try { game.scale.resize(GAME_W, GAME_H); } catch (e) {}
   const wpx = GAME_W + 'px';
   ['ui-bar', 'bottom-bar'].forEach(id => { const el = document.getElementById(id); if (el) el.style.maxWidth = wpx; });
@@ -1914,6 +1947,7 @@ function _startMode(mode) {
 document.getElementById('btn-mode-time').addEventListener('click', () => _startMode('time'));
 document.getElementById('btn-mode-mission').addEventListener('click', () => _startMode('mission'));
 document.getElementById('btn-mode-shape').addEventListener('click', () => _startMode('shape'));
+document.getElementById('btn-mode-rotate').addEventListener('click', () => _startMode('rotate'));
 document.getElementById('btn-bomb-toggle').addEventListener('click', () => {
   bombEnabled = !bombEnabled;
   document.getElementById('btn-bomb-toggle').textContent = bombEnabled ? '💣 爆弾: あり' : '💣 爆弾: なし';
