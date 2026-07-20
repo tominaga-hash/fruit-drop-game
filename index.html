@@ -554,6 +554,7 @@ class GameScene extends Phaser.Scene {
     this.gravityInterval = [30000, 45000, 60000][Math.floor(Math.random() * 3)]; // 30/45/60秒ランダム
     this.rotTimer = 0;
     this.rotInterval = [15000, 20000, 25000][Math.floor(Math.random() * 3)]; // 回転までの時間
+    this.rotating = false;
     this.warningActive = false;
     this.releasedDuringWarning = false;
     this.warningShown = false;
@@ -658,7 +659,7 @@ class GameScene extends Phaser.Scene {
   }
 
   dropFruit() {
-    if (dropCooldown || gameOver) return;
+    if (dropCooldown || gameOver || this.rotating) return;
     dropCooldown = true;
     canDrop = false;
     this.isHoldingFruit = false; // 落とした
@@ -1437,14 +1438,13 @@ class GameScene extends Phaser.Scene {
             onComplete: () => { this.tweens.add({ targets: this.warningText, alpha: 0, duration: 300, delay: 250 }); } });
         }
       }
-      if (this.rotTimer >= this.rotInterval) {
+      if (this.rotTimer >= this.rotInterval && !this.rotating) {
         this.rotTimer = 0;
         this.rotInterval = [15000, 20000, 25000][Math.floor(Math.random() * 3)];
         this.lastCountNum = -1;
         this.doRotate();
-        this.flipGracePeriod = 1800;
       }
-      if (!dropCooldown && this.flipGracePeriod <= 0 && this.quakeGrace <= 0) {
+      if (!dropCooldown && !this.rotating && this.flipGracePeriod <= 0 && this.quakeGrace <= 0) {
         for (const fruit of this.fruits) {
           const vel = fruit.body.velocity;
           const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
@@ -1698,28 +1698,46 @@ class GameScene extends Phaser.Scene {
   }
 
   doRotate() {
+    if (this.rotating) return;
     const MB = Phaser.Physics.Matter.Matter.Body;
     const cx = GAME_W / 2, cy = GAME_H / 2;
-    this.fruits.forEach(f => {
+    // 各フルーツの中心からの半径・角度を記録し、静止化
+    const items = this.fruits.map(f => {
       const p = f.body.position;
       const dx = p.x - cx, dy = p.y - cy;
-      // 画面座標(y下向き)での時計回り90°: (dx,dy)->(-dy,dx)
-      const nx = cx - dy, ny = cy + dx;
-      MB.setPosition(f.body, { x: Phaser.Math.Clamp(nx, WALL_T + 6, GAME_W - WALL_T - 6), y: Phaser.Math.Clamp(ny, 6, GAME_H - FLOOR_T - 6) });
-      MB.setVelocity(f.body, { x: 0, y: 0 });
-      MB.setAngularVelocity(f.body, 0.15);
+      return { f, r: Math.hypot(dx, dy), a0: Math.atan2(dy, dx), ang0: f.body.angle };
     });
-    this.cameras.main.shake(250, 0.006);
+    items.forEach(it => { try { MB.setStatic(it.f.body, true); } catch (e) {} });
+    this.rotating = true;
+    const prox = { t: 0 };
+    this.tweens.add({
+      targets: prox, t: 1, duration: 900, ease: 'Cubic.easeInOut',
+      onUpdate: () => {
+        const rot = prox.t * (Math.PI / 2); // 時計回り90°
+        items.forEach(it => {
+          const a = it.a0 + rot;
+          const nx = cx + it.r * Math.cos(a);
+          const ny = cy + it.r * Math.sin(a);
+          try { MB.setPosition(it.f.body, { x: nx, y: ny }); MB.setAngle(it.f.body, it.ang0 + rot); } catch (e) {}
+        });
+      },
+      onComplete: () => {
+        items.forEach(it => { try { MB.setStatic(it.f.body, false); MB.setVelocity(it.f.body, { x: 0, y: 0 }); MB.setAngularVelocity(it.f.body, 0); } catch (e) {} });
+        this.rotating = false;
+        this.flipGracePeriod = 700; // 回転直後の猶予
+      }
+    });
+    this.cameras.main.shake(150, 0.004);
     if (soundEnabled) {
       try {
         const ctx = getAudioCtx();
         const o = ctx.createOscillator(), g = ctx.createGain();
         o.type = 'sine';
         o.frequency.setValueAtTime(300, ctx.currentTime);
-        o.frequency.linearRampToValueAtTime(720, ctx.currentTime + 0.35);
-        g.gain.setValueAtTime(0.22, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-        o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.4);
+        o.frequency.linearRampToValueAtTime(720, ctx.currentTime + 0.85);
+        g.gain.setValueAtTime(0.2, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.9);
+        o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.9);
       } catch (e) {}
     }
   }
