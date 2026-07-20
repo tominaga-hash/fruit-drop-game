@@ -1726,7 +1726,7 @@ class GameScene extends Phaser.Scene {
       onComplete: () => {
         items.forEach(it => { try { MB.setStatic(it.f.body, false); MB.setVelocity(it.f.body, { x: 0, y: 0 }); MB.setAngularVelocity(it.f.body, 0); } catch (e) {} });
         this.rotating = false;
-        this.flipGracePeriod = 700; // 回転直後の猶予
+        this.flipGracePeriod = 2600; // 回転が原因でゲームオーバーにしない（十分に落ち着くまで判定停止）
       }
     });
     this.cameras.main.shake(150, 0.004);
