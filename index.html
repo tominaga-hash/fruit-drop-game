@@ -1446,13 +1446,7 @@ class GameScene extends Phaser.Scene {
         this.lastCountNum = -1;
         this.doRotate();
       }
-      if (!dropCooldown && !this.rotating && this.flipGracePeriod <= 0 && this.quakeGrace <= 0) {
-        for (const fruit of this.fruits) {
-          const vel = fruit.body.velocity;
-          const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
-          if (fruit.body.position.y < 80 && speed < 0.5) { this.triggerGameOver(); return; }
-        }
-      }
+      // 回転ステージはエンドレス（積み上げによるゲームオーバーなし）
       return;
     }
 
